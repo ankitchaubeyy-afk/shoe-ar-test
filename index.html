@@ -1,12 +1,9 @@
 <!DOCTYPE html>
 
-<html lang="en">
-
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
-  <title>Shoe AR Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shoe AR</title>
 
   <script type="module"
     src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
@@ -16,9 +13,9 @@
 
     body{
       margin:0;
-      overflow:hidden;
       background:#111;
-      font-family:Arial, sans-serif;
+      overflow:hidden;
+      font-family:Arial,sans-serif;
     }
 
     model-viewer{
@@ -27,21 +24,19 @@
       background:#222;
     }
 
-    #ar-button{
-      background:white;
-      color:black;
-      border:none;
-      border-radius:12px;
+    .btn{
       position:absolute;
-      bottom:30px;
+      bottom:25px;
       left:50%;
       transform:translateX(-50%);
+      background:white;
+      color:black;
       padding:14px 24px;
+      border-radius:12px;
       font-size:18px;
       font-weight:bold;
-      cursor:pointer;
-      z-index:10;
-      box-shadow:0 4px 10px rgba(0,0,0,0.3);
+      text-decoration:none;
+      z-index:99;
     }
 
   </style>
@@ -51,26 +46,15 @@
 <body>
 
 <model-viewer
- src="./shoe.glb"
- ar
- ar-modes="scene-viewer"
- ar-scale="auto"
- ar-placement="floor"
- camera-controls
- auto-rotate
- shadow-intensity="1"
- exposure="1"
- environment-image="neutral"
- alt="3D Shoe">
+src="shoe.glb"
+camera-controls
+auto-rotate
+shadow-intensity="1"
+exposure="1"> </model-viewer>
 
-```
-<button slot="ar-button" id="ar-button">
-  👟 View in AR
-</button>
-```
-
-  </model-viewer>
+<a class="btn"
+href="intent://arvr.google.com/scene-viewer/1.0?file=https://ankitchaubeyy-afk.github.io/shoe-ar-test/shoe.glb&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=https://ankitchaubeyy-afk.github.io/shoe-ar-test/;end;">
+👟 Open AR </a>
 
 </body>
-
 </html>
