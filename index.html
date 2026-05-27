@@ -5,10 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Shoe AR Test</title>
+  <title>AR Shoe Test</title>
 
   <script type="module"
-    src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js">
+    src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
   </script>
 
   <style>
@@ -25,18 +25,18 @@
       background:#222;
     }
 
-    .ar-button{
+    #ar-button{
       background:white;
-      color:black;
+      border-radius:12px;
       border:none;
-      border-radius:10px;
-      padding:12px 18px;
-      font-size:16px;
       position:absolute;
-      bottom:20px;
-      right:20px;
-      cursor:pointer;
+      bottom:30px;
+      left:50%;
+      transform:translateX(-50%);
+      padding:14px 22px;
+      font-size:18px;
       font-weight:bold;
+      cursor:pointer;
     }
 
   </style>
@@ -45,23 +45,22 @@
 
 <body>
 
-  <model-viewer
-    src="shoe.glb"
-    ar
-    ar-modes="scene-viewer webxr quick-look"
-    camera-controls
-    auto-rotate
-    shadow-intensity="1"
-    exposure="1"
-    environment-image="neutral"
-    camera-orbit="0deg 75deg 105%"
-    alt="3D Shoe">
+<model-viewer
+  src="shoe.glb"
+  ar
+  ar-modes="scene-viewer webxr quick-look"
+  camera-controls
+  auto-rotate
+  shadow-intensity="1"
+  exposure="1"
+  environment-image="neutral"
+  alt="3D Shoe">
 
-    <button slot="ar-button" class="ar-button">
-      👟 View in AR
-    </button>
+  <button slot="ar-button" id="ar-button">
+    👟 View in your space
+  </button>
 
-  </model-viewer>
+</model-viewer>
 
 </body>
 
