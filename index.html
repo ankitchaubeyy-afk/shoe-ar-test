@@ -2,39 +2,40 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AR Test</title>
+  <title>Shoe AR</title>
 
   <script type="module"
     src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js">
   </script>
 
   <style>
-    body{
-      margin:0;
-      overflow:hidden;
-      background:#111;
-      font-family:Arial, sans-serif;
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+      font-family: Arial, sans-serif;
     }
 
-    model-viewer{
-      width:100vw;
-      height:100vh;
-      background:#222;
+    model-viewer {
+      width: 100vw;
+      height: 100vh;
+      background: #222;
     }
 
-    #ar-button{
-      background:white;
-      color:black;
-      border:none;
-      border-radius:12px;
-      position:absolute;
-      bottom:30px;
-      left:50%;
-      transform:translateX(-50%);
-      padding:14px 22px;
-      font-size:18px;
-      font-weight:bold;
-      z-index:99;
+    #ar-button {
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 12px;
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 14px 22px;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 99;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -42,7 +43,7 @@
 <body>
 
   <model-viewer
-    src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+    src="shoe.glb"
     ar
     ar-modes="webxr scene-viewer quick-look"
     ar-scale="auto"
@@ -51,10 +52,10 @@
     auto-rotate
     shadow-intensity="1"
     exposure="1"
-    alt="Astronaut AR Test">
+    alt="Shoe AR">
 
     <button slot="ar-button" id="ar-button">
-      🚀 Test AR
+      👟 View in AR
     </button>
 
   </model-viewer>
