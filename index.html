@@ -12,7 +12,6 @@
   </script>
 
   <style>
-
     body{
       margin:0;
       overflow:hidden;
@@ -27,8 +26,9 @@
 
     #ar-button{
       background:white;
-      border-radius:12px;
+      color:black;
       border:none;
+      border-radius:12px;
       position:absolute;
       bottom:30px;
       left:50%;
@@ -37,30 +37,31 @@
       font-size:18px;
       font-weight:bold;
       cursor:pointer;
+      z-index:10;
     }
-
   </style>
-
 </head>
 
 <body>
 
-<model-viewer
-  src="shoe.glb"
-  ar
-  ar-modes="scene-viewer webxr quick-look"
-  camera-controls
-  auto-rotate
-  shadow-intensity="1"
-  exposure="1"
-  environment-image="neutral"
-  alt="3D Shoe">
+  <model-viewer
+    src="shoe.glb"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    ar-scale="auto"
+    ar-placement="floor"
+    camera-controls
+    auto-rotate
+    shadow-intensity="1"
+    exposure="1"
+    environment-image="neutral"
+    alt="3D Shoe">
 
-  <button slot="ar-button" id="ar-button">
-    👟 View in your space
-  </button>
+    <button slot="ar-button" id="ar-button">
+      👟 View in your space
+    </button>
 
-</model-viewer>
+  </model-viewer>
 
 </body>
 
