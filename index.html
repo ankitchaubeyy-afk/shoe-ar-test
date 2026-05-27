@@ -1,120 +1,380 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shoe AR</title>
+  <title>NB · Studio Viewer</title>
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;600&display=swap');
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0c0c0e;
+      --surface: #141416;
+      --border: rgba(255,255,255,0.07);
+      --text: #f0ede8;
+      --muted: #666;
+      --accent: #e8d5b0;
+      --pill-bg: rgba(255,255,255,0.06);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0a0a0a;
-      font-family: 'DM Sans', sans-serif;
-      color: #fff;
-      height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── LOADING SCREEN ── */
+    #loader {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      transition: opacity 0.6s ease, visibility 0.6s;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; }
+
+    .loader-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 36px;
+      letter-spacing: 6px;
+      color: var(--accent);
+    }
+
+    .loader-bar-wrap {
+      width: 180px;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
       overflow: hidden;
     }
-
-    model-viewer {
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(ellipse at 50% 60%, #1a1a2e 0%, #0a0a0a 70%);
-      --poster-color: transparent;
+    .loader-bar {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .loader-text {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
     }
 
+    /* ── HEADER ── */
     header {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 999;
-      padding: 20px 28px;
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 16px 20px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
-      pointer-events: none;
+      background: linear-gradient(to bottom, rgba(12,12,14,0.95), transparent);
     }
 
     .brand {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 26px;
-      letter-spacing: 3px;
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      letter-spacing: 4px;
+      color: var(--accent);
     }
 
-    .badge {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: #aaa;
-      border: 1px solid #333;
-      padding: 5px 12px;
-      border-radius: 20px;
-    }
-
-    .bottom-panel {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 999;
-      padding: 24px 28px 50px;
-      background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-    }
-
-    .shoe-info h2 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 32px;
-      letter-spacing: 2px;
-    }
-
-    .shoe-info p {
-      font-size: 13px;
-      color: #888;
-      margin-top: 4px;
-    }
-
-    #my-ar-btn {
-      background: #fff;
-      color: #000;
-      border: none;
-      border-radius: 50px;
-      padding: 16px 28px;
-      font-size: 15px;
-      font-weight: 700;
-      font-family: 'DM Sans', sans-serif;
-      cursor: pointer;
+    .header-right {
       display: flex;
       align-items: center;
       gap: 8px;
-      box-shadow: 0 4px 24px rgba(255,255,255,0.25);
+    }
+
+    .tag {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── MODEL VIEWER ── */
+    model-viewer {
+      width: 100%;
+      flex: 1;
+      --poster-color: transparent;
+      background: transparent;
+    }
+
+    /* ── ENVIRONMENT BACKGROUNDS ── */
+    body.env-studio model-viewer { background: radial-gradient(ellipse at 50% 40%, #1e1e28 0%, #0c0c0e 65%); }
+    body.env-sunset model-viewer { background: radial-gradient(ellipse at 50% 30%, #2d1a0e 0%, #1a0a18 50%, #0c0c0e 100%); }
+    body.env-arctic model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f2d 0%, #071318 60%, #0c0c0e 100%); }
+    body.env-forest model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f0e 0%, #071008 60%, #0c0c0e 100%); }
+
+    /* ── BOTTOM PANEL ── */
+    .bottom-panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: linear-gradient(to top, rgba(12,12,14,0.98) 60%, transparent);
+      padding: 12px 20px 32px;
+    }
+
+    /* Shoe name + price row */
+    .shoe-meta {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .shoe-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .shoe-sub {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+    .shoe-price {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 6px 12px;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.2s, border-color 0.2s;
+      background: none; border-top: none; border-left: none; border-right: none;
+      font-family: 'Syne', sans-serif;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── TAB PANELS ── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* COLOR SWATCHES */
+    .swatch-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 0;
+    }
+    .swatch {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s, border-color 0.15s;
+      position: relative;
+    }
+    .swatch.active { border-color: var(--accent); transform: scale(1.15); }
+    .swatch-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    /* SIZE SELECTOR */
+    .size-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px 0;
+    }
+    .size-btn {
+      width: 44px; height: 36px;
+      border: 1px solid var(--border);
+      background: var(--pill-bg);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: 'Syne', sans-serif;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .size-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    .size-btn.sold-out {
+      opacity: 0.3;
+      text-decoration: line-through;
+      cursor: not-allowed;
+    }
+
+    /* ENVIRONMENT PILLS */
+    .env-row {
+      display: flex;
+      gap: 8px;
+      padding: 8px 0;
+      flex-wrap: wrap;
+    }
+    .env-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      background: var(--pill-bg);
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      transition: all 0.2s;
+    }
+    .env-btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ── ACTION ROW ── */
+    .action-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    #ar-btn {
+      flex: 1;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 14px;
+      font-weight: 800;
+      font-family: 'Syne', sans-serif;
+      letter-spacing: 1px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
       -webkit-tap-highlight-color: transparent;
     }
 
-    .hint {
-      position: fixed;
-      bottom: 150px;
+    #share-btn {
+      width: 50px;
+      background: var(--pill-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── HOTSPOTS ── */
+    .hotspot {
+      background: var(--accent);
+      border-radius: 50%;
+      width: 20px; height: 20px;
+      border: 2px solid #000;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      color: #000;
+      position: relative;
+    }
+    .hotspot::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 26px;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 12px;
-      color: #555;
+      background: rgba(0,0,0,0.9);
+      color: var(--text);
+      font-size: 11px;
+      font-family: 'Syne', sans-serif;
       letter-spacing: 1px;
-      text-transform: uppercase;
-      animation: pulse 2.5s ease-in-out infinite;
-      pointer-events: none;
       white-space: nowrap;
-      z-index: 999;
+      padding: 5px 10px;
+      border-radius: 6px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
     }
+    .hotspot:hover::after, .hotspot:focus::after { opacity: 1; }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
+    /* ── TOAST ── */
+    #toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: var(--accent);
+      color: #000;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
     }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
-<body>
+<body class="env-studio">
 
+  <!-- LOADING SCREEN -->
+  <div id="loader">
+    <div class="loader-brand">STUDIO</div>
+    <div class="loader-bar-wrap"><div class="loader-bar" id="loader-bar"></div></div>
+    <div class="loader-text">Loading model…</div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">NB · STUDIO</div>
+    <div class="header-right">
+      <div class="tag" id="color-label">Rose Metallic</div>
+      <div class="tag">AR Ready</div>
+    </div>
+  </header>
+
+  <!-- MODEL VIEWER -->
   <model-viewer
     id="viewer"
     src="shoe.glb"
@@ -124,49 +384,180 @@
     ar-placement="floor"
     camera-controls
     auto-rotate
-    shadow-intensity="1.2"
-    exposure="1.1"
-    environment-image="neutral"
-    alt="Shoe in AR">
+    auto-rotate-delay="1000"
+    rotation-per-second="15deg"
+    shadow-intensity="1.5"
+    shadow-softness="1"
+    exposure="1.2"
+    tone-mapping="commerce"
+    environment-image="https://modelviewer.dev/shared-assets/environments/neutral.hdr"
+    alt="New Balance Shoe">
+
+    <!-- HOTSPOTS -->
+    <button class="hotspot" slot="hotspot-sole"
+      data-surface="0 0 0 0 0 0 0"
+      data-tip="Foam Sole">i</button>
+
+    <button class="hotspot" slot="hotspot-upper"
+      data-surface="0 0 0 0 0 0 0"
+      data-tip="Suede Upper">i</button>
+
   </model-viewer>
 
-  <header>
-    <div class="brand">SHOE AR</div>
-    <div class="badge">3D · AR Ready</div>
-  </header>
-
-  <div class="hint">Drag to rotate · Pinch to zoom</div>
-
+  <!-- BOTTOM PANEL -->
   <div class="bottom-panel">
-    <div class="shoe-info">
-      <h2>Your Shoe</h2>
-      <p>Tap AR to place in your space</p>
+
+    <div class="shoe-meta">
+      <div>
+        <div class="shoe-name" id="shoe-name-display">Court Classic</div>
+        <div class="shoe-sub">New Balance · 2024</div>
+      </div>
+      <div class="shoe-price" id="price-display">₹8,999</div>
     </div>
-    <button id="my-ar-btn">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-        <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-        <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-        <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-      View in AR
-    </button>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" data-tab="colors">Colors</button>
+      <button class="tab" data-tab="sizes">Sizes</button>
+      <button class="tab" data-tab="environ">Scene</button>
+    </div>
+
+    <!-- COLORS PANEL -->
+    <div class="panel active" id="tab-colors">
+      <div class="swatch-row">
+        <div class="swatch active" style="background:#d4b8a8;" data-color="Rose Metallic" data-price="₹8,999" onclick="selectColor(this)"></div>
+        <div class="swatch" style="background:#1a1a2e;" data-color="Midnight Navy" data-price="₹8,999" onclick="selectColor(this)"></div>
+        <div class="swatch" style="background:#2d4a1e;" data-color="Forest Green" data-price="₹9,499" onclick="selectColor(this)"></div>
+        <div class="swatch" style="background:#8b1a1a;" data-color="Crimson" data-price="₹9,499" onclick="selectColor(this)"></div>
+        <div class="swatch" style="background:#e8e8e0;" data-color="Cloud White" data-price="₹7,999" onclick="selectColor(this)"></div>
+        <span class="swatch-label" id="swatch-label">Rose Metallic</span>
+      </div>
+    </div>
+
+    <!-- SIZES PANEL -->
+    <div class="panel" id="tab-sizes">
+      <div class="size-grid">
+        <button class="size-btn sold-out">UK 5</button>
+        <button class="size-btn" onclick="selectSize(this)">UK 6</button>
+        <button class="size-btn" onclick="selectSize(this)">UK 7</button>
+        <button class="size-btn active" onclick="selectSize(this)">UK 8</button>
+        <button class="size-btn" onclick="selectSize(this)">UK 9</button>
+        <button class="size-btn" onclick="selectSize(this)">UK 10</button>
+        <button class="size-btn sold-out">UK 11</button>
+        <button class="size-btn" onclick="selectSize(this)">UK 12</button>
+      </div>
+    </div>
+
+    <!-- ENVIRONMENT PANEL -->
+    <div class="panel" id="tab-environ">
+      <div class="env-row">
+        <button class="env-btn active" onclick="setEnv(this,'env-studio','neutral')">Studio</button>
+        <button class="env-btn" onclick="setEnv(this,'env-sunset','legacy')">Sunset</button>
+        <button class="env-btn" onclick="setEnv(this,'env-arctic','spruit_sunrise_1k')">Arctic</button>
+        <button class="env-btn" onclick="setEnv(this,'env-forest','neutral')">Forest</button>
+      </div>
+    </div>
+
+    <!-- ACTION ROW -->
+    <div class="action-row">
+      <button id="ar-btn" onclick="document.getElementById('viewer').activateAR()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Try in AR
+      </button>
+      <button id="share-btn" onclick="shareProduct()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+      </button>
+    </div>
+
   </div>
 
   <script>
     const viewer = document.getElementById('viewer');
-    const btn = document.getElementById('my-ar-btn');
+    const loaderBar = document.getElementById('loader-bar');
+    const loader = document.getElementById('loader');
 
-    btn.addEventListener('click', () => {
-      viewer.activateAR();
-    });
+    // ── LOADING ──
+    let prog = 0;
+    const fakeLoad = setInterval(() => {
+      prog += Math.random() * 18;
+      if (prog > 90) { prog = 90; clearInterval(fakeLoad); }
+      loaderBar.style.width = prog + '%';
+    }, 200);
 
-    // hide model-viewer's own AR button if it appears
     viewer.addEventListener('load', () => {
-      const internalBtn = viewer.shadowRoot && viewer.shadowRoot.querySelector('#default-ar-button');
-      if (internalBtn) internalBtn.style.display = 'none';
+      clearInterval(fakeLoad);
+      loaderBar.style.width = '100%';
+      setTimeout(() => loader.classList.add('hidden'), 500);
     });
+
+    // ── TABS ──
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ── COLORS ──
+    function selectColor(el) {
+      document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+      const label = el.dataset.color;
+      const price = el.dataset.price;
+      document.getElementById('swatch-label').textContent = label;
+      document.getElementById('color-label').textContent = label;
+      document.getElementById('price-display').textContent = price;
+      showToast(label + ' selected');
+    }
+
+    // ── SIZES ──
+    function selectSize(el) {
+      if (el.classList.contains('sold-out')) return;
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      showToast('Size ' + el.textContent + ' selected');
+    }
+
+    // ── ENVIRONMENT ──
+    function setEnv(el, envClass, hdr) {
+      document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      document.body.className = envClass;
+      const hdrs = {
+        'neutral': 'https://modelviewer.dev/shared-assets/environments/neutral.hdr',
+        'legacy': 'https://modelviewer.dev/shared-assets/environments/legacy.hdr',
+        'spruit_sunrise_1k': 'https://modelviewer.dev/shared-assets/environments/spruit_sunrise_1k_HDR.hdr'
+      };
+      viewer.environmentImage = hdrs[hdr] || hdrs['neutral'];
+      showToast(el.textContent + ' scene');
+    }
+
+    // ── SHARE ──
+    function shareProduct() {
+      if (navigator.share) {
+        navigator.share({ title: 'NB Court Classic', url: window.location.href });
+      } else {
+        navigator.clipboard.writeText(window.location.href);
+        showToast('Link copied!');
+      }
+    }
+
+    // ── TOAST ──
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 1800);
+    }
   </script>
 
 </body>
