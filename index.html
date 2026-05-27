@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 
 <head>
   <meta charset="UTF-8">
@@ -16,8 +15,8 @@
 
     body{
       margin:0;
-      background:#111;
       overflow:hidden;
+      background:#111;
     }
 
     model-viewer{
@@ -26,22 +25,41 @@
       background:#222;
     }
 
+    .ar-button{
+      background:white;
+      color:black;
+      border:none;
+      border-radius:10px;
+      padding:12px 18px;
+      font-size:16px;
+      position:absolute;
+      bottom:20px;
+      right:20px;
+      cursor:pointer;
+      font-weight:bold;
+    }
+
   </style>
 
 </head>
 
 <body>
 
-<model-viewer
- src="shoe.glb"
- ar
- ar-modes="webxr scene-viewer quick-look"
- camera-controls
- auto-rotate
- shadow-intensity="1"
- exposure="1"
- camera-orbit="0deg 75deg 105%"
- alt="3D Shoe">
+  <model-viewer
+    src="shoe.glb"
+    ar
+    ar-modes="scene-viewer webxr quick-look"
+    camera-controls
+    auto-rotate
+    shadow-intensity="1"
+    exposure="1"
+    environment-image="neutral"
+    camera-orbit="0deg 75deg 105%"
+    alt="3D Shoe">
+
+    <button slot="ar-button" class="ar-button">
+      👟 View in AR
+    </button>
 
   </model-viewer>
 
