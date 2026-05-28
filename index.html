@@ -25,36 +25,6 @@
       flex-direction: column;
     }
 
-    /* LOADER */
-    #loader {
-      position: fixed; inset: 0;
-      background: var(--bg);
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      transition: opacity 0.5s, visibility 0.5s;
-    }
-    #loader.hidden { opacity: 0; visibility: hidden; }
-    .loader-bar-wrap {
-      width: 160px; height: 2px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 2px; overflow: hidden;
-    }
-    .loader-bar {
-      height: 100%; width: 0%;
-      background: var(--accent);
-      border-radius: 2px;
-      transition: width 0.3s ease;
-    }
-    .loader-text {
-      font-size: 11px; letter-spacing: 3px;
-      text-transform: uppercase; color: var(--muted);
-    }
-
-    /* VIEWER */
     model-viewer {
       width: 100%; flex: 1;
       --poster-color: transparent;
@@ -64,31 +34,32 @@
     body.env-arctic model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f2d 0%, #071318 60%, #0c0c0e 100%); }
     body.env-forest model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f0e 0%, #071008 60%, #0c0c0e 100%); }
 
+    /* LOADER */
+    #loader {
+      position: fixed; inset: 0;
+      background: var(--bg); z-index: 9999;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px;
+      transition: opacity 0.5s, visibility 0.5s;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; }
+    .loader-bar-wrap { width: 160px; height: 2px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    .loader-bar { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+    .loader-text { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
+
     /* BOTTOM */
     .bottom {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 100;
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
       background: linear-gradient(to top, rgba(12,12,14,1) 55%, transparent);
       padding: 10px 20px 36px;
     }
 
-    /* TABS */
-    .tabs {
-      display: flex; gap: 4px;
-      margin-bottom: 10px;
-      border-bottom: 1px solid var(--border);
-    }
+    .tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
     .tab {
-      font-size: 11px; letter-spacing: 1.5px;
-      text-transform: uppercase;
-      padding: 6px 12px;
-      color: var(--muted);
-      cursor: pointer;
-      border: none; border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      background: none;
-      font-family: 'Syne', sans-serif;
+      font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase;
+      padding: 6px 12px; color: var(--muted); cursor: pointer;
+      border: none; border-bottom: 2px solid transparent; margin-bottom: -1px;
+      background: none; font-family: 'Syne', sans-serif;
       transition: color 0.2s, border-color 0.2s;
     }
     .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
@@ -96,76 +67,56 @@
     .panel { display: none; padding: 8px 0; }
     .panel.active { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
-    /* SWATCHES */
-    .swatch {
-      width: 30px; height: 30px; border-radius: 50%;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: transform 0.15s, border-color 0.15s;
-    }
+    .swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s, border-color 0.15s; }
     .swatch.active { border-color: var(--accent); transform: scale(1.15); }
 
-    /* SIZES */
     .size-btn {
-      width: 46px; height: 36px;
-      border: 1px solid var(--border);
-      background: var(--pill);
-      color: #f0ede8;
-      border-radius: 8px;
-      font-size: 12px;
-      font-family: 'Syne', sans-serif;
-      cursor: pointer;
-      transition: all 0.15s;
+      width: 46px; height: 36px; border: 1px solid var(--border);
+      background: var(--pill); color: #f0ede8; border-radius: 8px;
+      font-size: 12px; font-family: 'Syne', sans-serif; cursor: pointer; transition: all 0.15s;
     }
     .size-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
     .size-btn.sold-out { opacity: 0.25; text-decoration: line-through; cursor: not-allowed; }
 
-    /* ENV BUTTONS */
     .env-btn {
-      padding: 6px 14px; border-radius: 20px;
-      font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-      border: 1px solid var(--border); background: var(--pill);
-      color: var(--muted); cursor: pointer;
-      font-family: 'Syne', sans-serif; transition: all 0.2s;
+      padding: 6px 14px; border-radius: 20px; font-size: 11px; letter-spacing: 1px;
+      text-transform: uppercase; border: 1px solid var(--border); background: var(--pill);
+      color: var(--muted); cursor: pointer; font-family: 'Syne', sans-serif; transition: all 0.2s;
     }
     .env-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
 
-    /* AR BUTTON */
+    /* ACTION ROW */
+    .action-row { display: flex; gap: 10px; margin-top: 12px; }
+
     #ar-btn {
-      width: 100%; margin-top: 12px;
-      background: var(--accent); color: #000;
-      border: none; border-radius: 12px;
-      padding: 15px;
-      font-size: 14px; font-weight: 800;
-      font-family: 'Syne', sans-serif;
-      letter-spacing: 1px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 8px;
+      flex: 1; background: var(--accent); color: #000; border: none; border-radius: 12px;
+      padding: 15px; font-size: 14px; font-weight: 800; font-family: 'Syne', sans-serif;
+      letter-spacing: 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* HINT */
-    .hint {
-      position: fixed; bottom: 195px;
-      left: 50%; transform: translateX(-50%);
-      font-size: 11px; color: var(--muted);
-      letter-spacing: 1px; text-transform: uppercase;
-      animation: pulse 2.5s ease-in-out infinite;
-      pointer-events: none; white-space: nowrap; z-index: 99;
+    #tryon-btn {
+      background: var(--pill); color: #f0ede8; border: 1px solid var(--border);
+      border-radius: 12px; padding: 15px 18px; font-size: 14px; font-weight: 700;
+      font-family: 'Syne', sans-serif; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      -webkit-tap-highlight-color: transparent; white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s;
     }
-    @keyframes pulse {
-      0%,100% { opacity: 0.3; } 50% { opacity: 0.8; }
-    }
+    #tryon-btn:active { background: rgba(255,255,255,0.12); }
 
-    /* TOAST */
+    .hint {
+      position: fixed; bottom: 210px; left: 50%; transform: translateX(-50%);
+      font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+      animation: pulse 2.5s ease-in-out infinite; pointer-events: none; white-space: nowrap; z-index: 99;
+    }
+    @keyframes pulse { 0%,100%{opacity:0.3} 50%{opacity:0.8} }
+
     #toast {
-      position: fixed; top: 20px; left: 50%;
-      transform: translateX(-50%) translateY(-8px);
-      background: var(--accent); color: #000;
-      padding: 7px 18px; border-radius: 20px;
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-8px);
+      background: var(--accent); color: #000; padding: 7px 18px; border-radius: 20px;
       font-size: 12px; font-weight: 700; letter-spacing: 1px;
-      z-index: 9999; opacity: 0;
-      transition: opacity 0.3s, transform 0.3s;
-      pointer-events: none;
+      z-index: 9999; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none;
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
@@ -179,20 +130,9 @@
 
   <div id="toast"></div>
 
-  <model-viewer
-    id="viewer"
-    src="shoe.glb"
-    ar
-    ar-modes="webxr scene-viewer quick-look"
-    ar-scale="auto"
-    ar-placement="floor"
-    camera-controls
-    auto-rotate
-    auto-rotate-delay="1000"
-    rotation-per-second="15deg"
-    shadow-intensity="1.5"
-    shadow-softness="1"
-    exposure="1.2"
+  <model-viewer id="viewer" src="shoe.glb" ar ar-modes="webxr scene-viewer quick-look"
+    ar-scale="auto" ar-placement="floor" camera-controls auto-rotate auto-rotate-delay="1000"
+    rotation-per-second="15deg" shadow-intensity="1.5" shadow-softness="1" exposure="1.2"
     tone-mapping="commerce"
     environment-image="https://modelviewer.dev/shared-assets/environments/neutral.hdr"
     alt="Shoe">
@@ -232,14 +172,19 @@
       <button class="env-btn" onclick="setEnv(this,'env-forest','neutral')">Forest</button>
     </div>
 
-    <button id="ar-btn" onclick="document.getElementById('viewer').activateAR()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-        <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-        <circle cx="12" cy="12" r="3"/>
-      </svg>
-      Try in AR
-    </button>
+    <div class="action-row">
+      <button id="ar-btn" onclick="document.getElementById('viewer').activateAR()">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        View in AR
+      </button>
+      <button id="tryon-btn" onclick="window.location.href='tryon.html'">
+        👟 Try-On
+      </button>
+    </div>
   </div>
 
   <script>
@@ -255,8 +200,7 @@
     }, 200);
 
     viewer.addEventListener('load', () => {
-      clearInterval(t);
-      loaderBar.style.width = '100%';
+      clearInterval(t); loaderBar.style.width = '100%';
       setTimeout(() => loader.classList.add('hidden'), 400);
     });
 
@@ -271,35 +215,26 @@
 
     function selectSwatch(el) {
       document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
-      el.classList.add('active');
-      showToast(el.dataset.label);
+      el.classList.add('active'); showToast(el.dataset.label);
     }
-
     function selectSize(el) {
       if (el.classList.contains('sold-out')) return;
       document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
-      showToast(el.textContent);
+      el.classList.add('active'); showToast(el.textContent);
     }
-
     const hdrs = {
       neutral: 'https://modelviewer.dev/shared-assets/environments/neutral.hdr',
-      legacy: 'https://modelviewer.dev/shared-assets/environments/legacy.hdr',
-      spruit: 'https://modelviewer.dev/shared-assets/environments/spruit_sunrise_1k_HDR.hdr'
+      legacy:  'https://modelviewer.dev/shared-assets/environments/legacy.hdr',
+      spruit:  'https://modelviewer.dev/shared-assets/environments/spruit_sunrise_1k_HDR.hdr'
     };
-
     function setEnv(el, cls, hdr) {
       document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
-      document.body.className = cls;
-      viewer.environmentImage = hdrs[hdr];
-      showToast(el.textContent);
+      el.classList.add('active'); document.body.className = cls;
+      viewer.environmentImage = hdrs[hdr]; showToast(el.textContent);
     }
-
     function showToast(msg) {
       const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
+      t.textContent = msg; t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 1600);
     }
   </script>
