@@ -171,20 +171,27 @@ async function loadModel() {
   }, 20000);
 
   try {
-    ldMsg.textContent = 'Loading TensorFlow (1/3)…';
+    ldMsg.textContent = 'Loading TensorFlow core (1/4)…';
     ldBar.style.width = '15%';
     await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.11.0/dist/tf-core.min.js');
 
-    ldMsg.textContent = 'Loading WebGL (2/3)…';
-    ldBar.style.width = '40%';
+    // REQUIRED for MoveNet. Without this file you get:
+    // "poseDetection.loadGraphModel is not a function" / "loadGraphModel is not a function"
+    ldMsg.textContent = 'Loading TensorFlow converter (2/4)…';
+    ldBar.style.width = '35%';
+    await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.11.0/dist/tf-converter.min.js');
+
+    ldMsg.textContent = 'Loading WebGL backend (3/4)…';
+    ldBar.style.width = '55%';
     await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.11.0/dist/tf-backend-webgl.min.js');
 
-    ldMsg.textContent = 'Loading MoveNet (3/3)…';
-    ldBar.style.width = '65%';
+    ldMsg.textContent = 'Loading MoveNet model code (4/4)…';
+    ldBar.style.width = '70%';
     await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
 
     ldMsg.textContent = 'Initializing…';
-    ldBar.style.width = '80%';
+    ldBar.style.width = '82%';
+    await tf.setBackend('webgl');
     await tf.ready();
 
     ldMsg.textContent = 'Creating detector…';
