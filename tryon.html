@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Preload MediaPipe for faster startup -->
+<link rel="preload" href="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" as="script">
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" defer></script>
 <title>Shoe Try-On</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -135,7 +138,8 @@
 <div id="loader">
   <div class="ld-title">SHOE TRY-ON</div>
   <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-text" id="ld-text">Loading MediaPipe…</div>
+  <div class="ld-text" id="ld-text">Loading…</div>
+  <div style="font-size:10px;color:#333;letter-spacing:1px;text-align:center;margin-top:8px;">First load takes ~10s<br>Next time instant ⚡</div>
 </div>
 
 <a href="index.html" id="back-btn">← AR Viewer</a>
@@ -258,11 +262,15 @@ const fillLight = new THREE.DirectionalLight(0xffe8d0, 0.4);
 fillLight.position.set(-2, 1, 2);
 scene.add(fillLight);
 
-// Shoe placeholder groups
-const shoeGroup1 = new THREE.Group();
-const shoeGroup2 = new THREE.Group();
-scene.add(shoeGroup1);
-scene.add(shoeGroup2);
+// One group per foot side
+// RIGHT foot = mirrored (scale.x -1), LEFT foot = normal
+const shoeGroupLeft  = new THREE.Group(); // left foot  — normal
+const shoeGroupRight = new THREE.Group(); // right foot — X flipped
+scene.add(shoeGroupLeft);
+scene.add(shoeGroupRight);
+// alias so old references still work
+const shoeGroup1 = shoeGroupLeft;
+const shoeGroup2 = shoeGroupRight;
 
 function resizeThree() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -293,8 +301,8 @@ function loadShoe() {
     loader2.load(
       'shoe.glb',
       gltf => {
-        setupShoeModel(gltf, shoeGroup1, false);
-        setupShoeModel(gltf, shoeGroup2, true);
+        setupShoeModel(gltf, shoeGroupLeft,  false); // left  foot — normal
+        setupShoeModel(gltf, shoeGroupRight, true);  // right foot — X flipped
         state.shoeLoaded = true;
         ldBar.style.width = '100%';
         setTimeout(() => loader.classList.add('hidden'), 400);
@@ -308,8 +316,8 @@ function loadShoe() {
       err => {
         console.warn('GLB load error:', err);
         // Fallback: use a box as shoe placeholder
-        makeFallbackShoe(shoeGroup1, false);
-        makeFallbackShoe(shoeGroup2, true);
+        makeFallbackShoe(shoeGroupLeft,  false);
+        makeFallbackShoe(shoeGroupRight, true);
         state.shoeLoaded = true;
         ldBar.style.width = '100%';
         setTimeout(() => loader.classList.add('hidden'), 400);
@@ -361,39 +369,46 @@ const FOOT_PAIRS = [
 ];
 
 function initMediaPipe(cb) {
-  ldText.textContent = 'Loading Pose detector…';
-  ldBar.style.width  = '30%';
+  ldText.textContent = 'Starting pose detector…';
+  ldBar.style.width  = '40%';
 
-  const poseScript = document.createElement('script');
-  poseScript.src = MEDIAPIPE_CDN + 'pose/pose.js';
-  poseScript.onload = () => {
-    ldBar.style.width = '50%';
+  function startPose() {
     ldText.textContent = 'Initializing pose…';
+    ldBar.style.width  = '55%';
 
     pose = new Pose({
       locateFile: file => `${MEDIAPIPE_CDN}pose/${file}`
     });
 
     pose.setOptions({
-      modelComplexity: 1,
+      modelComplexity: 0,        // 0 = lite model, loads fast
       smoothLandmarks: true,
       enableSegmentation: false,
-      minDetectionConfidence: 0.6,
+      minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5
     });
 
     pose.onResults(onPoseResults);
     pose.initialize().then(() => {
-      ldBar.style.width = '60%';
+      ldBar.style.width = '65%';
+      cb();
+    }).catch(() => {
+      ldText.textContent = 'Pose init failed!';
       cb();
     });
-  };
-  poseScript.onerror = () => {
-    // Fallback to hands if pose fails — at least show something
-    ldText.textContent = 'Pose failed, trying hands…';
-    cb();
-  };
-  document.head.appendChild(poseScript);
+  }
+
+  // Script already loaded via <head> preload — use directly
+  if (typeof Pose !== 'undefined') {
+    startPose();
+  } else {
+    // Fallback: load dynamically if preload missed
+    const s = document.createElement('script');
+    s.src = MEDIAPIPE_CDN + 'pose/pose.js';
+    s.onload  = startPose;
+    s.onerror = () => { ldText.textContent = 'Pose load failed!'; cb(); };
+    document.head.appendChild(s);
+  }
 }
 
 // ── POSE RESULTS ─────────────────────────────────────────────
@@ -407,8 +422,8 @@ function onPoseResults(results) {
     statusEl.textContent = 'No pose detected';
     statusEl.className   = 'lost';
     footCount.textContent = '👟 0 feet';
-    shoeGroup1.visible = false;
-    shoeGroup2.visible = false;
+    shoeGroupLeft.visible  = false;
+    shoeGroupRight.visible = false;
     return;
   }
 
@@ -471,45 +486,46 @@ function onPoseResults(results) {
 }
 
 // ── UPDATE THREE.JS SHOE POSITIONS ───────────────────────────
-const groups = [shoeGroup1, shoeGroup2];
-
 function updateShoes() {
   if (!state.shoeLoaded) return;
   const W = window.innerWidth, H = window.innerHeight;
 
-  groups.forEach((g, i) => {
-    const foot = state.feet[i];
-    if (!foot) { g.visible = false; return; }
+  // Build a lookup: side → foot data
+  const footMap = {};
+  state.feet.forEach(f => { footMap[f.side] = f; });
 
-    g.visible = true;
+  // ── LEFT FOOT ───────────────────────────────────────────────
+  // MediaPipe landmark 27/29/31 = anatomical LEFT foot
+  // Camera is mirrored (video transform:scaleX(-1))
+  // So MediaPipe "left" appears on RIGHT side of screen → shoe normal (no flip)
+  // MediaPipe "right" appears on LEFT side of screen  → shoe flipped (mirror)
+  [
+    { group: shoeGroupLeft,  side: 'left',  flip: false },
+    { group: shoeGroupRight, side: 'right', flip: true  },
+  ].forEach(({ group, side, flip }) => {
+    const foot = footMap[side];
+    if (!foot) { group.visible = false; return; }
 
-    // Convert canvas pixel → Three ortho coords
+    group.visible = true;
+
+    // Canvas pixel → Three ortho space
     const tx = foot.mx - W / 2;
     const ty = -(foot.my - H / 2);
+    group.position.set(tx, ty, 0);
 
-    g.position.set(tx, ty, 0);
-
-    // Scale based on foot length in pixels
+    // Scale from foot pixel length
     const baseScale = foot.footLen * state.scale * 0.012;
-    g.scale.set(baseScale, baseScale, baseScale);
 
-    // Rotate to match foot angle
+    // Flip X for right foot so shoe faces correct direction
+    const xSign = flip ? -1 : 1;
+    group.scale.set(baseScale * xSign, baseScale, baseScale);
+
+    // Rotation: match foot angle from heel→toe
+    // Negate because canvas Y is flipped vs Three Y
     let angle = -foot.angle;
     if (state.flipShoe) angle += Math.PI;
-    // Left foot: flip x
-    if (foot.side === 'left') {
-      g.scale.x *= -1;
-    }
-    g.rotation.z = angle;
-
-    // Shadow (simple circle underneath)
-    // handled by Three shadow map
+    group.rotation.z = angle;
   });
-
-  // Hide extra shoe groups if fewer feet
-  for (let i = state.feet.length; i < groups.length; i++) {
-    groups[i].visible = false;
-  }
 }
 
 // ── CAMERA ───────────────────────────────────────────────────
