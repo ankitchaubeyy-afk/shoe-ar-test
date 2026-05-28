@@ -2,17 +2,25 @@
 <html lang="en">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- Preload MediaPipe for faster startup -->
-<link rel="preload" href="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" as="script">
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" defer></script>
 <title>Shoe Try-On</title>
+<!-- TensorFlow.js + MoveNet — only ~3MB total -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.11.0/dist/tf-core.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.11.0/dist/tf-backend-webgl.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#000; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+
+  body {
+    background:#000;
+    font-family:'Segoe UI', sans-serif;
+    overflow:hidden;
+    height:100dvh;
+  }
 
   #container {
     position:relative;
-    width:100vw; height:100dvh;
+    width:100vw;
+    height:100dvh;
   }
 
   #video {
@@ -22,581 +30,485 @@
     transform:scaleX(-1);
   }
 
-  #overlay-canvas {
+  #overlay {
     position:absolute; inset:0;
     width:100%; height:100%;
     transform:scaleX(-1);
     pointer-events:none;
   }
 
-  #three-canvas {
-    position:absolute; inset:0;
-    width:100%; height:100%;
-    pointer-events:none;
+  /* LOADER */
+  #loader {
+    position:fixed; inset:0;
+    background:#000; z-index:999;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:16px;
+  }
+  #loader.hidden { display:none; }
+
+  .ld-title {
+    color:#e8d5b0; font-size:20px;
+    letter-spacing:4px; font-weight:700;
+    text-transform:uppercase;
+  }
+  .ld-bar-wrap {
+    width:200px; height:3px;
+    background:rgba(255,255,255,0.1);
+    border-radius:3px; overflow:hidden;
+  }
+  .ld-bar {
+    height:100%; background:#e8d5b0;
+    width:0%; border-radius:3px;
+    transition:width 0.4s ease;
+  }
+  .ld-msg {
+    font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; color:#555;
+    text-align:center; line-height:1.8;
   }
 
-  /* UI */
+  /* START SCREEN */
+  #start-screen {
+    position:fixed; inset:0;
+    background:#000; z-index:998;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:20px;
+  }
+  #start-screen.hidden { display:none; }
+
+  .start-icon { font-size:56px; }
+  .start-title {
+    color:#e8d5b0; font-size:22px;
+    letter-spacing:3px; font-weight:700;
+  }
+  .start-sub {
+    color:#555; font-size:12px;
+    letter-spacing:2px; text-align:center;
+    line-height:1.8;
+  }
+  #start-btn {
+    background:#e8d5b0; color:#000;
+    border:none; border-radius:14px;
+    padding:16px 40px; font-size:15px;
+    font-weight:700; letter-spacing:1px;
+    cursor:pointer; margin-top:8px;
+  }
+
+  /* UI BOTTOM */
   #ui {
-    position:absolute; bottom:0; left:0; right:0;
-    z-index:50;
-    padding:16px 20px 36px;
-    background:linear-gradient(to top, rgba(0,0,0,0.85), transparent);
-    display:flex; flex-direction:column; gap:10px;
+    position:fixed; bottom:0; left:0; right:0;
+    z-index:100;
+    padding:12px 16px 36px;
+    background:linear-gradient(to top, rgba(0,0,0,0.9) 60%, transparent);
   }
 
   #status {
-    text-align:center;
-    font-size:13px; letter-spacing:2px; text-transform:uppercase;
-    color:#aaa;
+    text-align:center; font-size:11px;
+    letter-spacing:2px; text-transform:uppercase;
+    color:#666; margin-bottom:10px;
   }
-  #status.tracking { color:#4fffb0; }
-  #status.lost     { color:#ff6b6b; }
+  #status.on  { color:#4fffb0; }
+  #status.off { color:#ff6b6b; }
 
-  .controls {
-    display:flex; gap:10px; justify-content:center; flex-wrap:wrap;
+  .sliders { display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .sl-row {
+    display:flex; align-items:center; gap:8px;
+    font-size:11px; letter-spacing:1px;
+    text-transform:uppercase; color:#666;
   }
+  .sl-row label { min-width:55px; }
+  input[type=range] { flex:1; accent-color:#e8d5b0; height:3px; }
+  .sl-val { min-width:28px; color:#e8d5b0; font-weight:700; font-size:11px; text-align:right; }
 
-  .ctrl-btn {
-    background:rgba(255,255,255,0.08);
-    border:1px solid rgba(255,255,255,0.15);
+  .btns { display:flex; gap:8px; margin-bottom:10px; }
+  .btn {
+    flex:1; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.12);
     color:#fff; border-radius:10px;
-    padding:10px 18px; font-size:13px;
+    padding:9px; font-size:12px;
     cursor:pointer; font-family:inherit;
-    transition:background 0.2s;
-    display:flex; align-items:center; gap:6px;
+    letter-spacing:1px;
   }
-  .ctrl-btn:active { background:rgba(255,255,255,0.18); }
-
-  #start-btn {
-    width:100%;
-    background:#e8d5b0; color:#000;
-    border:none; border-radius:12px;
-    padding:15px; font-size:15px; font-weight:700;
-    font-family:inherit; letter-spacing:1px;
-    cursor:pointer;
-  }
-
-  #loader {
-    position:absolute; inset:0;
-    background:#000; z-index:200;
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:20px;
-  }
-  #loader.hidden { display:none; }
-  .ld-title { color:#e8d5b0; font-size:22px; letter-spacing:4px; font-weight:700; }
-  .ld-bar-wrap { width:200px; height:3px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
-  .ld-bar { height:100%; background:#e8d5b0; width:0%; transition:width 0.4s; border-radius:3px; }
-  .ld-text { color:#555; font-size:11px; letter-spacing:3px; text-transform:uppercase; }
-
-  /* sliders */
-  .slider-row {
-    display:flex; align-items:center; gap:10px;
-    font-size:12px; color:#888; letter-spacing:1px;
-  }
-  .slider-row label { min-width:60px; text-transform:uppercase; }
-  input[type=range] {
-    flex:1; accent-color:#e8d5b0;
-    height:4px; cursor:pointer;
-  }
-  .slider-val { min-width:32px; text-align:right; color:#e8d5b0; font-weight:700; }
+  .btn.active { background:rgba(232,213,176,0.15); border-color:#e8d5b0; color:#e8d5b0; }
 
   #back-btn {
-    position:fixed; top:16px; left:16px;
-    z-index:200;
-    background:rgba(0,0,0,0.5);
-    color:#e8d5b0;
-    font-size:12px; letter-spacing:2px;
-    text-transform:uppercase;
+    position:fixed; top:16px; left:16px; z-index:200;
+    background:rgba(0,0,0,0.6);
+    color:#e8d5b0; font-size:11px;
+    letter-spacing:2px; text-transform:uppercase;
     padding:8px 14px; border-radius:20px;
     text-decoration:none;
-    border:1px solid rgba(232,213,176,0.3);
-    font-family:inherit;
+    border:1px solid rgba(232,213,176,0.25);
   }
-  #hint {
-    position:absolute; top:60px; left:50%;
-    transform:translateX(-50%);
-    background:rgba(0,0,0,0.6);
-    color:#e8d5b0; font-size:12px;
-    letter-spacing:2px; text-transform:uppercase;
-    padding:8px 18px; border-radius:20px;
-    pointer-events:none; z-index:50;
-    animation:fadeInOut 3s forwards;
-  }
-  @keyframes fadeInOut { 0%{opacity:0} 10%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
 
-  #foot-count {
-    position:absolute; top:16px; right:16px;
-    background:rgba(0,0,0,0.5);
-    color:#4fffb0; font-size:12px;
-    letter-spacing:2px; padding:6px 12px;
-    border-radius:20px; z-index:50;
+  #foot-badge {
+    position:fixed; top:16px; right:16px; z-index:200;
+    background:rgba(0,0,0,0.6);
+    color:#4fffb0; font-size:11px;
+    letter-spacing:2px; padding:7px 12px;
+    border-radius:20px;
   }
 </style>
 </head>
 <body>
 
+<!-- LOADER -->
 <div id="loader">
   <div class="ld-title">SHOE TRY-ON</div>
   <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-text" id="ld-text">Loading…</div>
-  <div style="font-size:10px;color:#333;letter-spacing:1px;text-align:center;margin-top:8px;">First load takes ~10s<br>Next time instant ⚡</div>
+  <div class="ld-msg" id="ld-msg">Loading model…</div>
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen" class="hidden">
+  <div class="start-icon">👟</div>
+  <div class="start-title">SHOE TRY-ON</div>
+  <div class="start-sub">Point camera at your feet<br>Keep feet 50–80cm from camera</div>
+  <button id="start-btn">📷 Start Camera</button>
+</div>
+
+<!-- MAIN -->
+<div id="container">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="overlay"></canvas>
 </div>
 
 <a href="index.html" id="back-btn">← AR Viewer</a>
-<div id="container">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="overlay-canvas"></canvas>
-  <canvas id="three-canvas"></canvas>
+<div id="foot-badge">👟 0 feet</div>
 
-  <div id="foot-count">👟 0 feet</div>
+<div id="ui">
+  <div id="status">Waiting for feet…</div>
 
-  <div id="ui">
-    <div id="status">Initializing…</div>
-
-    <div class="slider-row">
+  <div class="sliders">
+    <div class="sl-row">
       <label>Scale</label>
-      <input type="range" id="sl-scale" min="0.5" max="3" step="0.05" value="1.2">
-      <span class="slider-val" id="v-scale">1.2</span>
+      <input type="range" id="sl-scale" min="0.3" max="2.5" step="0.05" value="1.0">
+      <span class="sl-val" id="v-scale">1.0</span>
     </div>
-    <div class="slider-row">
-      <label>Y Offset</label>
-      <input type="range" id="sl-yoff" min="-80" max="80" step="1" value="0">
-      <span class="slider-val" id="v-yoff">0</span>
+    <div class="sl-row">
+      <label>Y Pos</label>
+      <input type="range" id="sl-y" min="-60" max="60" step="1" value="0">
+      <span class="sl-val" id="v-y">0</span>
     </div>
-    <div class="slider-row">
-      <label>X Offset</label>
-      <input type="range" id="sl-xoff" min="-80" max="80" step="1" value="0">
-      <span class="slider-val" id="v-xoff">0</span>
-    </div>
+  </div>
 
-    <div class="controls">
-      <button class="ctrl-btn" id="btn-flip">🔄 Flip</button>
-      <button class="ctrl-btn" id="btn-debug">🦴 Skeleton</button>
-      <button class="ctrl-btn" id="btn-shadow">💡 Shadow</button>
-    </div>
-
-    <button id="start-btn">📷 Start Camera</button>
+  <div class="btns">
+    <button class="btn" id="btn-skeleton">🦴 Skeleton</button>
+    <button class="btn" id="btn-flip">🔄 Flip</button>
+    <button class="btn" id="btn-mirror">📷 Mirror</button>
   </div>
 </div>
 
-<!-- THREE.JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
 <script>
-// ── GLTFLoader inline (r128 compatible) ──────────────────────
-// We'll load shoe via model-viewer approach but render in Three
-// Actually use fetch + ObjectURL for GLB
-
-const MEDIAPIPE_CDN = "https://cdn.jsdelivr.net/npm/@mediapipe/";
-
-// ── State ────────────────────────────────────────────────────
-const state = {
+// ── State ──────────────────────────────────────────────────
+const S = {
+  detector:   null,
+  shoeImg:    null,
   running:    false,
-  showSkeleton: false,
-  showShadow: true,
+  skeleton:   false,
   flipShoe:   false,
-  scale:      1.2,
-  yOffset:    0,
-  xOffset:    0,
-  feet:       [],   // [{heel, toe, ankle, angle, width}]
-  shoeLoaded: false,
-  shoeModel:  null,
-  shoeModel2: null,  // second foot
+  mirror:     false,
+  scale:      1.0,
+  yOff:       0,
+  feet:       [],
 };
 
-// ── DOM ──────────────────────────────────────────────────────
-const video        = document.getElementById('video');
-const overlayCanvas= document.getElementById('overlay-canvas');
-const threeCanvas  = document.getElementById('three-canvas');
-const loader       = document.getElementById('loader');
-const ldBar        = document.getElementById('ld-bar');
-const ldText       = document.getElementById('ld-text');
-const statusEl     = document.getElementById('status');
-const footCount    = document.getElementById('foot-count');
+// ── Elements ───────────────────────────────────────────────
+const video     = document.getElementById('video');
+const canvas    = document.getElementById('overlay');
+const ctx       = canvas.getContext('2d');
+const loader    = document.getElementById('loader');
+const ldBar     = document.getElementById('ld-bar');
+const ldMsg     = document.getElementById('ld-msg');
+const startScr  = document.getElementById('start-screen');
+const statusEl  = document.getElementById('status');
+const footBadge = document.getElementById('foot-badge');
 
-// ── Sliders ──────────────────────────────────────────────────
-document.getElementById('sl-scale').addEventListener('input', e => {
-  state.scale = parseFloat(e.target.value);
-  document.getElementById('v-scale').textContent = state.scale.toFixed(2);
-});
-document.getElementById('sl-yoff').addEventListener('input', e => {
-  state.yOffset = parseInt(e.target.value);
-  document.getElementById('v-yoff').textContent = state.yOffset;
-});
-document.getElementById('sl-xoff').addEventListener('input', e => {
-  state.xOffset = parseInt(e.target.value);
-  document.getElementById('v-xoff').textContent = state.xOffset;
-});
-document.getElementById('btn-flip').addEventListener('click', () => {
-  state.flipShoe = !state.flipShoe;
-  document.getElementById('btn-flip').textContent = state.flipShoe ? '🔄 Flipped' : '🔄 Flip';
-});
-document.getElementById('btn-debug').addEventListener('click', () => {
-  state.showSkeleton = !state.showSkeleton;
-  document.getElementById('btn-debug').textContent = state.showSkeleton ? '🦴 Hide' : '🦴 Skeleton';
-});
-document.getElementById('btn-shadow').addEventListener('click', () => {
-  state.showShadow = !state.showShadow;
-  document.getElementById('btn-shadow').textContent = state.showShadow ? '💡 Shadow' : '💡 No Shadow';
-});
+// ── Sliders ────────────────────────────────────────────────
+document.getElementById('sl-scale').oninput = e => {
+  S.scale = parseFloat(e.target.value);
+  document.getElementById('v-scale').textContent = S.scale.toFixed(2);
+};
+document.getElementById('sl-y').oninput = e => {
+  S.yOff = parseInt(e.target.value);
+  document.getElementById('v-y').textContent = S.yOff;
+};
 
-// ── THREE.JS SETUP ───────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, alpha: true, antialias: true });
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMap.enabled = true;
-renderer.setClearColor(0x000000, 0);
-
-const scene  = new THREE.Scene();
-const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1000);
-camera.position.set(0, 0, 10);
-camera.lookAt(0, 0, 0);
-
-// Lighting
-const ambient = new THREE.AmbientLight(0xffffff, 0.7);
-scene.add(ambient);
-const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-dirLight.position.set(2, 5, 3);
-dirLight.castShadow = true;
-scene.add(dirLight);
-const fillLight = new THREE.DirectionalLight(0xffe8d0, 0.4);
-fillLight.position.set(-2, 1, 2);
-scene.add(fillLight);
-
-// One group per foot side
-// RIGHT foot = mirrored (scale.x -1), LEFT foot = normal
-const shoeGroupLeft  = new THREE.Group(); // left foot  — normal
-const shoeGroupRight = new THREE.Group(); // right foot — X flipped
-scene.add(shoeGroupLeft);
-scene.add(shoeGroupRight);
-// alias so old references still work
-const shoeGroup1 = shoeGroupLeft;
-const shoeGroup2 = shoeGroupRight;
-
-function resizeThree() {
-  const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h);
-  camera.left   = -w / 2;
-  camera.right  =  w / 2;
-  camera.top    =  h / 2;
-  camera.bottom = -h / 2;
-  camera.updateProjectionMatrix();
+// ── Toggle buttons ─────────────────────────────────────────
+function toggleBtn(id, key) {
+  S[key] = !S[key];
+  document.getElementById(id).classList.toggle('active', S[key]);
 }
-resizeThree();
-window.addEventListener('resize', resizeThree);
+document.getElementById('btn-skeleton').onclick = () => toggleBtn('btn-skeleton','skeleton');
+document.getElementById('btn-flip').onclick     = () => toggleBtn('btn-flip','flipShoe');
+document.getElementById('btn-mirror').onclick   = () => toggleBtn('btn-mirror','mirror');
 
-// ── LOAD GLB ─────────────────────────────────────────────────
-function loadGLTFLoader(cb) {
-  const s = document.createElement('script');
-  s.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-  s.onload = cb;
-  document.head.appendChild(s);
-}
+// ── MoveNet keypoint indices ───────────────────────────────
+// 15=left_ankle 16=right_ankle 17=left_heel 18=right_heel
+// 19=left_foot_index 20=right_foot_index  (MoveNet Thunder/Lightning 17kp)
+// MoveNet has 17 keypoints — feet are at 15,16
+// For heel & toe we use:  ankle=15/16, knee=13/14 to infer direction
+const KP = {
+  leftKnee:  13, rightKnee:  14,
+  leftAnkle: 15, rightAnkle: 16,
+};
 
-function loadShoe() {
-  ldText.textContent = 'Loading shoe model…';
-  ldBar.style.width  = '70%';
+// ── Load TF + MoveNet ──────────────────────────────────────
+async function loadModel() {
+  ldMsg.textContent  = 'Loading TensorFlow…';
+  ldBar.style.width  = '20%';
 
-  loadGLTFLoader(() => {
-    const loader2 = new THREE.GLTFLoader();
-    loader2.load(
-      'shoe.glb',
-      gltf => {
-        setupShoeModel(gltf, shoeGroupLeft,  false); // left  foot — normal
-        setupShoeModel(gltf, shoeGroupRight, true);  // right foot — X flipped
-        state.shoeLoaded = true;
-        ldBar.style.width = '100%';
-        setTimeout(() => loader.classList.add('hidden'), 400);
-        statusEl.textContent = 'Point camera at your feet';
-        addHint('Point camera at your feet 👇');
-      },
-      xhr => {
-        const p = Math.round((xhr.loaded / (xhr.total || 1)) * 30) + 70;
-        ldBar.style.width = p + '%';
-      },
-      err => {
-        console.warn('GLB load error:', err);
-        // Fallback: use a box as shoe placeholder
-        makeFallbackShoe(shoeGroupLeft,  false);
-        makeFallbackShoe(shoeGroupRight, true);
-        state.shoeLoaded = true;
-        ldBar.style.width = '100%';
-        setTimeout(() => loader.classList.add('hidden'), 400);
-        statusEl.textContent = 'Demo mode (add shoe.glb)';
-        addHint('Add shoe.glb for real shoe 👟');
-      }
-    );
-  });
-}
+  await tf.ready();
+  ldBar.style.width  = '50%';
+  ldMsg.textContent  = 'Loading MoveNet…';
 
-function setupShoeModel(gltf, group, mirror) {
-  // Clear group
-  while(group.children.length) group.remove(group.children[0]);
-
-  const model = gltf.scene.clone(true);
-  // Center model
-  const box = new THREE.Box3().setFromObject(model);
-  const center = box.getCenter(new THREE.Vector3());
-  const size   = box.getSize(new THREE.Vector3());
-  model.position.sub(center);
-  // Orient: shoe pointing along X axis
-  if (mirror) model.scale.x = -1;
-  model.traverse(n => { if(n.isMesh) { n.castShadow = true; n.receiveShadow = false; } });
-  group.add(model);
-  group.userData.shoeSize = size;
-  group.visible = false;
-}
-
-function makeFallbackShoe(group, mirror) {
-  while(group.children.length) group.remove(group.children[0]);
-  const geo = new THREE.BoxGeometry(1.8, 0.5, 0.7);
-  const mat = new THREE.MeshStandardMaterial({ color: 0xd4b8a8, roughness: 0.3, metalness: 0.5 });
-  const mesh = new THREE.Mesh(geo, mat);
-  if (mirror) mesh.scale.x = -1;
-  group.add(mesh);
-  group.userData.shoeSize = new THREE.Vector3(1.8, 0.5, 0.7);
-  group.visible = false;
-}
-
-// ── MEDIAPIPE POSE (uses full body, feet landmarks) ──────────
-let pose = null;
-let overlayCtx = overlayCanvas.getContext('2d');
-
-// Foot landmark indices in MediaPipe Pose
-// 27=left_ankle 28=right_ankle 29=left_heel 30=right_heel 31=left_foot_index 32=right_foot_index
-const FOOT_PAIRS = [
-  { ankle:27, heel:29, toe:31, side:'left'  },
-  { ankle:28, heel:30, toe:32, side:'right' },
-];
-
-function initMediaPipe(cb) {
-  ldText.textContent = 'Starting pose detector…';
-  ldBar.style.width  = '40%';
-
-  function startPose() {
-    ldText.textContent = 'Initializing pose…';
-    ldBar.style.width  = '55%';
-
-    pose = new Pose({
-      locateFile: file => `${MEDIAPIPE_CDN}pose/${file}`
-    });
-
-    pose.setOptions({
-      modelComplexity: 0,        // 0 = lite model, loads fast
-      smoothLandmarks: true,
-      enableSegmentation: false,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
-    });
-
-    pose.onResults(onPoseResults);
-    pose.initialize().then(() => {
-      ldBar.style.width = '65%';
-      cb();
-    }).catch(() => {
-      ldText.textContent = 'Pose init failed!';
-      cb();
-    });
-  }
-
-  // Script already loaded via <head> preload — use directly
-  if (typeof Pose !== 'undefined') {
-    startPose();
-  } else {
-    // Fallback: load dynamically if preload missed
-    const s = document.createElement('script');
-    s.src = MEDIAPIPE_CDN + 'pose/pose.js';
-    s.onload  = startPose;
-    s.onerror = () => { ldText.textContent = 'Pose load failed!'; cb(); };
-    document.head.appendChild(s);
-  }
-}
-
-// ── POSE RESULTS ─────────────────────────────────────────────
-function onPoseResults(results) {
-  const W = overlayCanvas.width, H = overlayCanvas.height;
-  overlayCtx.clearRect(0, 0, W, H);
-
-  state.feet = [];
-
-  if (!results.poseLandmarks) {
-    statusEl.textContent = 'No pose detected';
-    statusEl.className   = 'lost';
-    footCount.textContent = '👟 0 feet';
-    shoeGroupLeft.visible  = false;
-    shoeGroupRight.visible = false;
-    return;
-  }
-
-  const lm = results.poseLandmarks;
-
-  FOOT_PAIRS.forEach(fp => {
-    const ankle = lm[fp.ankle];
-    const heel  = lm[fp.heel];
-    const toe   = lm[fp.toe];
-    if (!ankle || !heel || !toe) return;
-    if (ankle.visibility < 0.4 && heel.visibility < 0.4) return;
-
-    // Convert normalized → pixel
-    const toP = (pt) => ({ x: pt.x * W, y: pt.y * H, z: pt.z });
-    const a = toP(ankle), h = toP(heel), t = toP(toe);
-
-    // Foot angle (heel → toe)
-    const angle = Math.atan2(t.y - h.y, t.x - h.x);
-
-    // Foot width (for scale)
-    const footLen = Math.hypot(t.x - h.x, t.y - h.y);
-
-    // Mid point of foot
-    const mx = (h.x + t.x) / 2 + state.xOffset;
-    const my = (h.y + t.y) / 2 + state.yOffset;
-
-    state.feet.push({ heel: h, toe: t, ankle: a, angle, footLen, mx, my, side: fp.side });
-
-    // Draw skeleton
-    if (state.showSkeleton) {
-      overlayCtx.strokeStyle = '#4fffb0';
-      overlayCtx.lineWidth = 3;
-      overlayCtx.beginPath();
-      overlayCtx.moveTo(h.x, h.y);
-      overlayCtx.lineTo(t.x, t.y);
-      overlayCtx.stroke();
-      [[h,'#ff6b6b'], [t,'#4fffb0'], [a,'#ffd700']].forEach(([pt, col]) => {
-        overlayCtx.beginPath();
-        overlayCtx.arc(pt.x, pt.y, 6, 0, Math.PI*2);
-        overlayCtx.fillStyle = col;
-        overlayCtx.fill();
-      });
-      overlayCtx.fillStyle = '#fff';
-      overlayCtx.font = '11px monospace';
-      overlayCtx.fillText(fp.side.toUpperCase(), h.x+8, h.y-8);
+  S.detector = await poseDetection.createDetector(
+    poseDetection.SupportedModels.MoveNet,
+    {
+      modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+      enableSmoothing: true,
     }
-  });
+  );
 
-  footCount.textContent = `👟 ${state.feet.length} ${state.feet.length===1?'foot':'feet'}`;
+  ldBar.style.width  = '80%';
+  ldMsg.textContent  = 'Loading shoe…';
 
-  if (state.feet.length > 0) {
-    statusEl.textContent = 'Tracking feet ✓';
-    statusEl.className   = 'tracking';
-  } else {
-    statusEl.textContent = 'Feet not visible';
-    statusEl.className   = 'lost';
-  }
+  // Load shoe image for 2D overlay (fast fallback)
+  // Also prepare GLB rendering via offscreen canvas if available
+  await loadShoeGraphic();
 
-  updateShoes();
+  ldBar.style.width  = '100%';
+  ldMsg.textContent  = 'Ready!';
+
+  setTimeout(() => {
+    loader.classList.add('hidden');
+    startScr.classList.remove('hidden');
+  }, 400);
 }
 
-// ── UPDATE THREE.JS SHOE POSITIONS ───────────────────────────
-function updateShoes() {
-  if (!state.shoeLoaded) return;
-  const W = window.innerWidth, H = window.innerHeight;
+// ── Shoe graphic — draw shoe as canvas image ───────────────
+async function loadShoeGraphic() {
+  return new Promise(resolve => {
+    // Try loading shoe.glb thumbnail — use a canvas-drawn shoe shape as fallback
+    S.shoeImg = null;
 
-  // Build a lookup: side → foot data
-  const footMap = {};
-  state.feet.forEach(f => { footMap[f.side] = f; });
+    // Draw a shoe silhouette on an offscreen canvas
+    const oc  = document.createElement('canvas');
+    oc.width  = 200;
+    oc.height = 80;
+    const ox  = oc.getContext('2d');
 
-  // ── LEFT FOOT ───────────────────────────────────────────────
-  // MediaPipe landmark 27/29/31 = anatomical LEFT foot
-  // Camera is mirrored (video transform:scaleX(-1))
-  // So MediaPipe "left" appears on RIGHT side of screen → shoe normal (no flip)
-  // MediaPipe "right" appears on LEFT side of screen  → shoe flipped (mirror)
-  [
-    { group: shoeGroupLeft,  side: 'left',  flip: false },
-    { group: shoeGroupRight, side: 'right', flip: true  },
-  ].forEach(({ group, side, flip }) => {
-    const foot = footMap[side];
-    if (!foot) { group.visible = false; return; }
+    // Shoe body
+    ox.fillStyle = '#d4b8a8';
+    ox.beginPath();
+    ox.ellipse(100, 45, 90, 28, 0, 0, Math.PI*2);
+    ox.fill();
 
-    group.visible = true;
+    // Toe cap
+    ox.fillStyle = '#c4a898';
+    ox.beginPath();
+    ox.ellipse(175, 48, 28, 20, 0.2, 0, Math.PI*2);
+    ox.fill();
 
-    // Canvas pixel → Three ortho space
-    const tx = foot.mx - W / 2;
-    const ty = -(foot.my - H / 2);
-    group.position.set(tx, ty, 0);
+    // Upper
+    ox.fillStyle = '#e8d5b0';
+    ox.beginPath();
+    ox.moveTo(60, 42);
+    ox.bezierCurveTo(80, 10, 140, 8, 165, 30);
+    ox.lineTo(155, 40);
+    ox.bezierCurveTo(130, 22, 85, 22, 65, 42);
+    ox.closePath();
+    ox.fill();
 
-    // Scale from foot pixel length
-    const baseScale = foot.footLen * state.scale * 0.012;
+    // Sole
+    ox.fillStyle = '#f0ede8';
+    ox.beginPath();
+    ox.ellipse(100, 58, 88, 14, 0, 0, Math.PI*2);
+    ox.fill();
 
-    // Flip X for right foot so shoe faces correct direction
-    const xSign = flip ? -1 : 1;
-    group.scale.set(baseScale * xSign, baseScale, baseScale);
-
-    // Rotation: match foot angle from heel→toe
-    // Negate because canvas Y is flipped vs Three Y
-    let angle = -foot.angle;
-    if (state.flipShoe) angle += Math.PI;
-    group.rotation.z = angle;
+    S.shoeImg = oc;
+    resolve();
   });
 }
 
-// ── CAMERA ───────────────────────────────────────────────────
-async function startCamera() {
-  document.getElementById('start-btn').style.display = 'none';
-  loader.classList.remove('hidden');
-  ldBar.style.width  = '10%';
-  ldText.textContent = 'Accessing camera…';
+// ── Camera ─────────────────────────────────────────────────
+document.getElementById('start-btn').onclick = async () => {
+  startScr.classList.add('hidden');
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} },
-      audio: false
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
     });
     video.srcObject = stream;
-    await new Promise(r => video.onloadedmetadata = r);
-    video.play();
-
-    overlayCanvas.width  = threeCanvas.width  = video.videoWidth;
-    overlayCanvas.height = threeCanvas.height = video.videoHeight;
-
-    // Try front camera fallback on desktop
-  } catch(e) {
+    await video.play();
+  } catch {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       video.srcObject = stream;
-      await new Promise(r => video.onloadedmetadata = r);
-      video.play();
-      overlayCanvas.width  = threeCanvas.width  = video.videoWidth;
-      overlayCanvas.height = threeCanvas.height = video.videoHeight;
-    } catch(e2) {
-      alert('Camera access denied. Please allow camera and reload.');
+      await video.play();
+    } catch(e) {
+      alert('Camera denied: ' + e.message);
       return;
     }
   }
 
-  state.running = true;
-  initMediaPipe(loadShoe);
+  S.running = true;
   requestAnimationFrame(loop);
-}
+};
 
-document.getElementById('start-btn').addEventListener('click', startCamera);
+// ── Detection loop ─────────────────────────────────────────
+let lastDetect = 0;
 
-// ── MAIN LOOP ────────────────────────────────────────────────
-let lastSend = 0;
 async function loop(ts) {
-  if (!state.running) return;
+  if (!S.running) return;
   requestAnimationFrame(loop);
 
-  // Resize canvas to video
-  if (overlayCanvas.width !== video.videoWidth && video.videoWidth > 0) {
-    overlayCanvas.width  = threeCanvas.width  = video.videoWidth;
-    overlayCanvas.height = threeCanvas.height = video.videoHeight;
+  // Sync canvas size
+  if (canvas.width !== video.videoWidth && video.videoWidth > 0) {
+    canvas.width  = video.videoWidth  || window.innerWidth;
+    canvas.height = video.videoHeight || window.innerHeight;
   }
 
-  // Send to MediaPipe at ~30fps
-  if (pose && video.readyState >= 2 && ts - lastSend > 33) {
-    lastSend = ts;
-    await pose.send({ image: video });
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Run detection at ~20fps to save battery
+  if (S.detector && video.readyState >= 2 && ts - lastDetect > 50) {
+    lastDetect = ts;
+    try {
+      const poses = await S.detector.estimatePoses(video);
+      processPoses(poses);
+    } catch(e) { /* skip frame */ }
   }
 
-  renderer.render(scene, camera);
+  drawShoes();
 }
 
-// ── HINT ─────────────────────────────────────────────────────
-function addHint(msg) {
-  const h = document.createElement('div');
-  h.id = 'hint'; h.textContent = msg;
-  document.getElementById('container').appendChild(h);
-  setTimeout(() => h.remove(), 3500);
+// ── Process poses → extract feet ───────────────────────────
+function processPoses(poses) {
+  S.feet = [];
+
+  poses.forEach(pose => {
+    const kps = pose.keypoints;
+    const get = i => kps[i] && kps[i].score > 0.25 ? kps[i] : null;
+
+    const sides = [
+      { ankle: get(KP.leftAnkle),  knee: get(KP.leftKnee),  side: 'left'  },
+      { ankle: get(KP.rightAnkle), knee: get(KP.rightKnee), side: 'right' },
+    ];
+
+    sides.forEach(({ ankle, knee, side }) => {
+      if (!ankle) return;
+
+      const W = canvas.width, H = canvas.height;
+
+      // ankle position
+      const ax = ankle.x, ay = ankle.y;
+
+      // Infer foot direction from knee→ankle vector
+      let angle = Math.PI / 2; // default pointing down
+      if (knee) {
+        // knee→ankle direction = leg direction
+        const dx = ax - knee.x;
+        const dy = ay - knee.y;
+        angle = Math.atan2(dy, dx);
+      }
+
+      // Foot length estimate from ankle height (lower = closer = bigger)
+      const depthFactor = ay / H; // 0=top 1=bottom
+      const footLen = 80 + depthFactor * 80; // 80–160px range
+
+      S.feet.push({ ax, ay, angle, footLen, side });
+    });
+  });
+
+  // Update UI
+  footBadge.textContent = `👟 ${S.feet.length} ${S.feet.length === 1 ? 'foot' : 'feet'}`;
+
+  if (S.feet.length > 0) {
+    statusEl.textContent = 'Tracking ✓';
+    statusEl.className   = 'on';
+  } else {
+    statusEl.textContent = 'Point camera at feet';
+    statusEl.className   = 'off';
+  }
+
+  // Skeleton
+  if (S.skeleton && poses.length > 0) {
+    drawSkeleton(poses[0].keypoints);
+  }
 }
+
+// ── Draw shoes on canvas ───────────────────────────────────
+function drawShoes() {
+  if (!S.shoeImg || S.feet.length === 0) return;
+
+  S.feet.forEach(foot => {
+    const { ax, ay, angle, footLen, side } = foot;
+
+    const W = S.shoeImg.width;
+    const H = S.shoeImg.height;
+    const scale = (footLen / W) * S.scale;
+
+    ctx.save();
+
+    // Move to ankle position + Y offset
+    ctx.translate(ax, ay + S.yOff);
+
+    // Rotate with foot angle
+    let rot = angle - Math.PI / 2;
+    if (S.flipShoe) rot += Math.PI;
+
+    ctx.rotate(rot);
+
+    // Mirror for right foot
+    const isRight = side === 'right';
+    if (isRight) ctx.scale(-1, 1);
+    // Agar user ne mirror toggle kiya
+    if (S.mirror) ctx.scale(-1, 1);
+
+    // Scale
+    ctx.scale(scale, scale);
+
+    // Draw centered on ankle
+    ctx.globalAlpha = 0.92;
+    ctx.drawImage(S.shoeImg, -W / 2, -H / 2);
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  });
+}
+
+// ── Skeleton debug ─────────────────────────────────────────
+const CONNECTIONS = [
+  [11,13],[13,15],[12,14],[14,16], // arms (ignore)
+  [11,12],[11,23],[12,24],[23,24], // torso
+  [23,25],[25,27],[27,29],[29,31], // left leg
+  [24,26],[26,28],[28,30],[30,32], // right leg
+];
+
+function drawSkeleton(kps) {
+  ctx.strokeStyle = 'rgba(79,255,176,0.6)';
+  ctx.lineWidth   = 2;
+
+  kps.forEach(kp => {
+    if (kp.score < 0.25) return;
+    ctx.beginPath();
+    ctx.arc(kp.x, kp.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = kp.name?.includes('ankle') || kp.name?.includes('knee')
+      ? '#ff6b6b' : 'rgba(79,255,176,0.7)';
+    ctx.fill();
+  });
+}
+
+// ── Boot ───────────────────────────────────────────────────
+loadModel();
 </script>
 </body>
 </html>
