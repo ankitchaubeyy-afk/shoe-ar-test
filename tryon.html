@@ -1,50 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shoe Try-On</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;background:#000;overflow:hidden;font-family:Segoe UI,Arial,sans-serif;color:#e8d5b0}#container{position:fixed;inset:0;overflow:hidden;background:#000}#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}#three{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}#debug{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:scaleX(-1)}#loader,#start-screen{position:fixed;inset:0;background:#000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}.hidden{display:none!important}.title{font-size:20px;letter-spacing:4px;font-weight:800}.bar-wrap{width:230px;height:3px;background:rgba(255,255,255,.12);border-radius:5px;overflow:hidden}.bar{height:100%;width:0;background:#e8d5b0;transition:.25s}.msg{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#777;line-height:1.7;max-width:360px;word-break:break-word}.btn-main{background:#e8d5b0;color:#000;border:0;border-radius:12px;padding:14px 28px;font-weight:800;cursor:pointer}.retry{display:none}.top{position:fixed;z-index:20;top:14px;padding:7px 13px;background:rgba(0,0,0,.62);border:1px solid rgba(232,213,176,.22);border-radius:20px;font-size:11px;letter-spacing:2px;text-decoration:none;color:#e8d5b0}.back{left:12px}.feet{right:12px;color:#4fffb0}#ui{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px 12px 28px;background:linear-gradient(to top,rgba(0,0,0,.92),rgba(0,0,0,.45),transparent)}#status{text-align:center;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:7px;color:#ff6b6b}#status.on{color:#4fffb0}.row{display:flex;align-items:center;gap:8px;margin:5px 0;color:#777;font-size:10px;text-transform:uppercase;letter-spacing:1px}.row label{width:58px}.row input{flex:1;accent-color:#e8d5b0}.row span{width:44px;text-align:right;color:#e8d5b0;font-weight:700}.btns{display:flex;gap:8px;margin-top:8px}.btn{flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#aaa;border-radius:10px;padding:9px;font-size:11px;letter-spacing:1px}.btn.on{border-color:#e8d5b0;color:#e8d5b0;background:rgba(232,213,176,.12)}
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100dvh; }
+  #container { position:relative; width:100vw; height:100dvh; }
+  #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+  #overlay { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); pointer-events:none; }
+
+  #loader { position:fixed; inset:0; background:#000; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+  #loader.hidden { display:none; }
+  .ld-title { color:#e8d5b0; font-size:20px; letter-spacing:4px; font-weight:700; }
+  .ld-bar-wrap { width:220px; height:3px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
+  .ld-bar { height:100%; background:#e8d5b0; width:0%; border-radius:3px; transition:width 0.3s; }
+  .ld-msg { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#555; text-align:center; }
+  .ld-retry { background:#e8d5b0; color:#000; border:none; border-radius:10px; padding:10px 24px; font-size:13px; font-weight:700; cursor:pointer; display:none; margin-top:8px; }
+
+  #start-screen { position:fixed; inset:0; background:#000; z-index:998; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; }
+  #start-screen.hidden { display:none; }
+  .start-icon { font-size:52px; }
+  .start-title { color:#e8d5b0; font-size:20px; letter-spacing:3px; font-weight:700; }
+  .start-sub { color:#555; font-size:11px; letter-spacing:2px; text-align:center; line-height:2; }
+  #start-btn { background:#e8d5b0; color:#000; border:none; border-radius:12px; padding:15px 36px; font-size:14px; font-weight:700; letter-spacing:1px; cursor:pointer; }
+
+  #ui { position:fixed; bottom:0; left:0; right:0; z-index:100; padding:10px 16px 34px; background:linear-gradient(to top, rgba(0,0,0,0.92) 55%, transparent); }
+  #status { text-align:center; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#555; margin-bottom:8px; }
+  #status.on { color:#4fffb0; } #status.off { color:#ff6b6b; }
+  .sl-row { display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#555; margin-bottom:6px; }
+  .sl-row label { min-width:52px; }
+  input[type=range] { flex:1; accent-color:#e8d5b0; height:3px; }
+  .sl-val { min-width:28px; color:#e8d5b0; font-weight:700; text-align:right; }
+  .btns { display:flex; gap:8px; margin-top:8px; }
+  .btn { flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#888; border-radius:10px; padding:9px; font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:1px; transition:all 0.2s; }
+  .btn.on { background:rgba(232,213,176,0.12); border-color:#e8d5b0; color:#e8d5b0; }
+
+  #back-btn { position:fixed; top:16px; left:16px; z-index:200; background:rgba(0,0,0,0.6); color:#e8d5b0; font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:7px 13px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,0.2); }
+  #foot-badge { position:fixed; top:16px; right:16px; z-index:200; background:rgba(0,0,0,0.6); color:#4fffb0; font-size:11px; letter-spacing:2px; padding:7px 12px; border-radius:20px; }
 </style>
 </head>
 <body>
-<div id="loader"><div class="title">SHOE TRY-ON</div><div class="bar-wrap"><div class="bar" id="bar"></div></div><div class="msg" id="msg">Starting...</div><button class="btn-main retry" id="retry" onclick="location.reload()">↺ Retry</button></div>
-<div id="start-screen" class="hidden"><div style="font-size:52px">👟</div><div class="title">REAL SHOE TRY-ON</div><div class="msg">Your real GLB model is loaded.<br>Point camera at your feet.</div><button class="btn-main" id="start-btn">📷 Start Camera</button></div>
-<div id="container"><video id="video" autoplay playsinline muted></video><canvas id="three"></canvas><canvas id="debug"></canvas></div>
-<a href="index.html" class="top back">← AR</a><div class="top feet" id="badge">👟 0 feet</div>
-<div id="ui"><div id="status">Loading...</div><div class="row"><label>Scale</label><input id="scale" type="range" min="0.05" max="5" step="0.01" value="1"><span id="scalev">1.00</span></div><div class="row"><label>Y Pos</label><input id="ypos" type="range" min="-260" max="260" step="1" value="0"><span id="yposv">0</span></div><div class="row"><label>X Rot</label><input id="xrot" type="range" min="-180" max="180" step="1" value="65"><span id="xrotv">65</span></div><div class="row"><label>Z Rot</label><input id="zrot" type="range" min="-180" max="180" step="1" value="0"><span id="zrotv">0</span></div><div class="btns"><button class="btn" id="skbtn">Skeleton</button><button class="btn" id="mirbtn">Mirror</button><button class="btn" id="flipbtn">Flip Shoe</button></div></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.11.0/dist/tf-core.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.11.0/dist/tf-converter.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.11.0/dist/tf-backend-webgl.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+<div id="loader">
+  <div class="ld-title">SHOE TRY-ON</div>
+  <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
+  <div class="ld-msg" id="ld-msg">Starting…</div>
+  <button class="ld-retry" id="ld-retry" onclick="location.reload()">↺ Retry</button>
+</div>
 
-<script type="module">
-import * as THREE from 'https://unpkg.com/three@0.158.0/build/three.module.js';
-import { GLTFLoader } from 'https://unpkg.com/three@0.158.0/examples/jsm/loaders/GLTFLoader.js';
+<div id="start-screen" class="hidden">
+  <div class="start-icon">👟</div>
+  <div class="start-title">SHOE TRY-ON</div>
+  <div class="start-sub">Point camera at your feet<br>Keep 50–80 cm distance</div>
+  <button id="start-btn">📷 Start Camera</button>
+</div>
 
-const $=id=>document.getElementById(id);
-const S={detector:null,left:null,right:null,running:false,feet:[],scale:1,y:0,xrot:65,zrot:0,skeleton:false,mirror:false,flip:false};
-const video=$('video'),threeCanvas=$('three'),debug=$('debug'),dctx=debug.getContext('2d'),bar=$('bar'),msg=$('msg'),loader=$('loader'),start=$('start-screen'),status=$('status'),badge=$('badge');
-let renderer,scene,camera;
+<div id="container">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="overlay"></canvas>
+</div>
 
-function setMsg(t){msg.innerHTML=t;}
-function setBar(v){bar.style.width=v+'%';}
-function showFail(e){console.error(e);setBar(100);setMsg('GLB LOAD FAILED.<br><br>Open this test first:<br><b>'+location.origin+location.pathname.replace(/[^\/]*$/,'')+'shoe.glb</b><br><br>Browser error:<br><b>'+String(e?.message||e).slice(0,140)+'</b>');$('retry').style.display='block';}
-function modelUrl(){const p=new URLSearchParams(location.search);const name=p.get('model')||'shoe.glb';return new URL(name, location.href).href;}
-async function urlExists(url){const r=await fetch(url,{method:'GET',cache:'no-store'});if(!r.ok)throw new Error('Model URL returned HTTP '+r.status+' - '+url);const blob=await r.blob();if(blob.size<1000)throw new Error('Model file is too small / not real GLB: '+blob.size+' bytes');return URL.createObjectURL(blob);}
-function initThree(){renderer=new THREE.WebGLRenderer({canvas:threeCanvas,alpha:true,antialias:true,preserveDrawingBuffer:false});renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;scene=new THREE.Scene();camera=new THREE.OrthographicCamera(-1,1,1,-1,-10000,10000);camera.position.z=1000;scene.add(new THREE.HemisphereLight(0xffffff,0x444444,2.8));const dl=new THREE.DirectionalLight(0xffffff,3.2);dl.position.set(0,5,10);scene.add(dl);}
-function resize(){const w=video.videoWidth||innerWidth,h=video.videoHeight||innerHeight;renderer.setSize(w,h,false);debug.width=w;debug.height=h;camera.left=-w/2;camera.right=w/2;camera.top=h/2;camera.bottom=-h/2;camera.updateProjectionMatrix();}
-function loadGLB(url){return new Promise((res,rej)=>{new GLTFLoader().load(url,g=>res(g.scene),undefined,err=>rej(new Error('GLTFLoader failed: '+(err?.message||'check file path/CORS'))));});}
-async function boot(){try{setBar(10);setMsg('Checking shoe.glb...');const objectUrl=await urlExists(modelUrl());setBar(25);setMsg('Loading TensorFlow...');await tf.setBackend('webgl');await tf.ready();setBar(45);setMsg('Loading foot tracker...');S.detector=await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet,{modelType:poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,enableSmoothing:true});setBar(65);setMsg('Loading your real GLB shoe...');initThree();const m=await loadGLB(objectUrl);m.traverse(o=>{if(o.isMesh){o.frustumCulled=false;o.castShadow=false;o.receiveShadow=false;if(o.material){o.material.side=THREE.DoubleSide;o.material.needsUpdate=true;if(o.material.map)o.material.map.colorSpace=THREE.SRGBColorSpace;}}});const box=new THREE.Box3().setFromObject(m);const size=new THREE.Vector3();box.getSize(size);const center=new THREE.Vector3();box.getCenter(center);m.position.sub(center);const maxDim=Math.max(size.x,size.y,size.z)||1;m.scale.setScalar(180/maxDim);S.left=m;S.right=m.clone(true);scene.add(S.left,S.right);S.left.visible=false;S.right.visible=false;setBar(100);setMsg('Ready. Real model loaded.');setTimeout(()=>{loader.classList.add('hidden');start.classList.remove('hidden')},350);}catch(e){showFail(e);}}
-['scale','ypos','xrot','zrot'].forEach(id=>$(id).oninput=e=>{let v=+e.target.value;if(id==='scale')S.scale=v;if(id==='ypos')S.y=v;if(id==='xrot')S.xrot=v;if(id==='zrot')S.zrot=v;$(id+'v').textContent=id==='scale'?v.toFixed(2):v;});
-$('skbtn').onclick=()=>{$('skbtn').classList.toggle('on');S.skeleton=!S.skeleton};$('mirbtn').onclick=()=>{$('mirbtn').classList.toggle('on');S.mirror=!S.mirror};$('flipbtn').onclick=()=>{$('flipbtn').classList.toggle('on');S.flip=!S.flip};
-$('start-btn').onclick=async()=>{start.classList.add('hidden');try{video.srcObject=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});await video.play();}catch(e){alert('Camera error: '+e.message);start.classList.remove('hidden');return;}resize();S.running=true;requestAnimationFrame(loop);};
-let last=0;async function loop(t){if(!S.running)return;requestAnimationFrame(loop);if(video.videoWidth&&threeCanvas.width!==video.videoWidth)resize();if(t-last>70){last=t;try{const poses=await S.detector.estimatePoses(video,{flipHorizontal:false});process(poses);}catch(e){console.warn(e);}}draw();renderer.render(scene,camera);}
-function process(poses){S.feet=[];(poses||[]).forEach(p=>{const k=p.keypoints,g=i=>k[i]&&k[i].score>.23?k[i]:null;[[15,13,'left'],[16,14,'right']].forEach(([ai,ki,side])=>{const a=g(ai),kn=g(ki);if(!a)return;let angle=0;if(kn)angle=Math.atan2(a.y-kn.y,a.x-kn.x);const footLen=80+(a.y/(debug.height||720))*140;S.feet.push({x:a.x,y:a.y,angle,side,footLen,kps:k});});});badge.textContent='👟 '+S.feet.length+' feet';status.textContent=S.feet.length?'Tracking ✓':'Show feet to camera';status.className=S.feet.length?'on':'';}
-function draw(){dctx.clearRect(0,0,debug.width,debug.height);if(S.left)S.left.visible=false;if(S.right)S.right.visible=false;S.feet.slice(0,2).forEach(f=>{const o=f.side==='left'?S.left:S.right;if(!o)return;o.visible=true;o.position.set(f.x-debug.width/2,-(f.y+S.y-debug.height/2),0);const sc=(f.footLen/180)*S.scale;o.scale.setScalar(sc);let z=f.angle-Math.PI/2+(S.zrot*Math.PI/180);if(S.flip)z+=Math.PI;o.rotation.set(S.xrot*Math.PI/180,(f.side==='right'||S.mirror)?Math.PI:0,z);});if(S.skeleton&&S.feet[0]){const k=S.feet[0].kps;[[13,15],[14,16],[11,13],[12,14]].forEach(([a,b])=>{if(!k[a]||!k[b]||k[a].score<.2||k[b].score<.2)return;dctx.strokeStyle='rgba(79,255,176,.8)';dctx.lineWidth=3;dctx.beginPath();dctx.moveTo(k[a].x,k[a].y);dctx.lineTo(k[b].x,k[b].y);dctx.stroke();});}}
-boot();
+<a href="index.html" id="back-btn">← AR</a>
+<div id="foot-badge">👟 0 feet</div>
+
+<div id="ui">
+  <div id="status">Waiting…</div>
+  <div class="sl-row"><label>Scale</label><input type="range" id="sl-scale" min="0.3" max="3" step="0.05" value="1"><span class="sl-val" id="v-scale">1.0</span></div>
+  <div class="sl-row"><label>Y Pos</label><input type="range" id="sl-y" min="-80" max="80" step="1" value="0"><span class="sl-val" id="v-y">0</span></div>
+  <div class="btns">
+    <button class="btn" id="btn-sk">🦴 Skeleton</button>
+    <button class="btn" id="btn-flip">🔄 Flip</button>
+    <button class="btn" id="btn-mir">📷 Mirror</button>
+  </div>
+</div>
+
+<script>
+const S = { detector:null, running:false, skeleton:false, flip:false, mirror:false, scale:1, yOff:0, feet:[] };
+
+const video     = document.getElementById('video');
+const canvas    = document.getElementById('overlay');
+const ctx       = canvas.getContext('2d');
+const loader    = document.getElementById('loader');
+const ldBar     = document.getElementById('ld-bar');
+const ldMsg     = document.getElementById('ld-msg');
+const startScr  = document.getElementById('start-screen');
+const statusEl  = document.getElementById('status');
+const footBadge = document.getElementById('foot-badge');
+const retryBtn  = document.getElementById('ld-retry');
+
+document.getElementById('sl-scale').oninput = e => { S.scale = +e.target.value; document.getElementById('v-scale').textContent = S.scale.toFixed(1); };
+document.getElementById('sl-y').oninput     = e => { S.yOff  = +e.target.value; document.getElementById('v-y').textContent = S.yOff; };
+function tog(key, id) { S[key]=!S[key]; document.getElementById(id).classList.toggle('on',S[key]); }
+document.getElementById('btn-sk').onclick   = () => tog('skeleton','btn-sk');
+document.getElementById('btn-flip').onclick = () => tog('flip','btn-flip');
+document.getElementById('btn-mir').onclick  = () => tog('mirror','btn-mir');
+
+// ── Shoe silhouette ────────────────────────────────────────
+function makeShoe() {
+  const oc = document.createElement('canvas');
+  oc.width=220; oc.height=90;
+  const o = oc.getContext('2d');
+  o.fillStyle='#f0ede8'; o.beginPath(); o.ellipse(110,70,98,14,0,0,Math.PI*2); o.fill();
+  o.fillStyle='#d4b8a8'; o.beginPath(); o.ellipse(105,50,90,30,-0.05,0,Math.PI*2); o.fill();
+  o.fillStyle='#c8aa9a'; o.beginPath(); o.ellipse(188,54,28,20,0.15,0,Math.PI*2); o.fill();
+  o.fillStyle='#e8d5b0';
+  o.beginPath(); o.moveTo(55,46); o.bezierCurveTo(72,8,148,6,178,30); o.lineTo(168,42); o.bezierCurveTo(144,20,78,20,62,46); o.closePath(); o.fill();
+  o.strokeStyle='rgba(255,255,255,0.4)'; o.lineWidth=1.5;
+  for(let i=0;i<4;i++){ o.beginPath(); o.moveTo(92+i*14,26+i*3); o.lineTo(104+i*14,26+i*3); o.stroke(); }
+  o.fillStyle='rgba(255,255,255,0.25)'; o.font='bold 20px Arial'; o.fillText('N',138,45);
+  return oc;
+}
+const shoeImg = makeShoe();
+
+// ── Load single bundle script ──────────────────────────────
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const t = setTimeout(() => rej(new Error('Timeout loading script')), 30000);
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload  = () => { clearTimeout(t); res(); };
+    s.onerror = () => { clearTimeout(t); rej(new Error('Failed to load: ' + src.split('/').pop())); };
+    document.head.appendChild(s);
+  });
+}
+
+async function loadModel() {
+  const retryT = setTimeout(() => { retryBtn.style.display='block'; }, 25000);
+
+  try {
+    // Use the ALL-IN-ONE tfjs bundle + pose-detection bundle
+    // These are fully self-contained, no inter-dependency issues
+    ldMsg.textContent = 'Loading AI engine (1/2)…';
+    ldBar.style.width = '20%';
+    await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js');
+
+    ldMsg.textContent = 'Loading pose model (2/2)…';
+    ldBar.style.width = '60%';
+    await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
+
+    ldMsg.textContent = 'Initializing WebGL…';
+    ldBar.style.width = '75%';
+    await tf.setBackend('webgl');
+    await tf.ready();
+
+    ldMsg.textContent = 'Loading MoveNet…';
+    ldBar.style.width = '88%';
+
+    S.detector = await poseDetection.createDetector(
+      poseDetection.SupportedModels.MoveNet,
+      {
+        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        enableSmoothing: true,
+      }
+    );
+
+    clearTimeout(retryT);
+    ldBar.style.width = '100%';
+    ldMsg.textContent = 'Ready!';
+    setTimeout(() => { loader.classList.add('hidden'); startScr.classList.remove('hidden'); }, 300);
+
+  } catch(err) {
+    clearTimeout(retryT);
+    ldMsg.textContent = '❌ ' + err.message;
+    retryBtn.style.display = 'block';
+    console.error(err);
+  }
+}
+
+// ── Camera ─────────────────────────────────────────────────
+document.getElementById('start-btn').onclick = async () => {
+  startScr.classList.add('hidden');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} },
+      audio:false
+    });
+    video.srcObject = stream; await video.play();
+  } catch {
+    try {
+      video.srcObject = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      await video.play();
+    } catch(e){ alert('Camera error: '+e.message); return; }
+  }
+  S.running = true;
+  requestAnimationFrame(loop);
+};
+
+// ── Loop ───────────────────────────────────────────────────
+let lastD = 0;
+async function loop(ts) {
+  if (!S.running) return;
+  requestAnimationFrame(loop);
+  if (canvas.width !== video.videoWidth && video.videoWidth > 0) {
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  }
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if (S.detector && video.readyState >= 2 && ts - lastD > 60) {
+    lastD = ts;
+    try {
+      const poses = await S.detector.estimatePoses(video);
+      processPoses(poses);
+    } catch(e) { console.warn(e); }
+  }
+  drawShoes();
+}
+
+// ── Pose ───────────────────────────────────────────────────
+function processPoses(poses) {
+  S.feet = [];
+  poses.forEach(pose => {
+    const kp = pose.keypoints;
+    const get = i => (kp[i]?.score > 0.2) ? kp[i] : null;
+    [{a:get(15),k:get(13),side:'left'},{a:get(16),k:get(14),side:'right'}].forEach(({a,k,side}) => {
+      if (!a) return;
+      const footLen = 70 + (a.y / canvas.height) * 90;
+      const angle   = k ? Math.atan2(a.y - k.y, a.x - k.x) : Math.PI/2;
+      S.feet.push({ x:a.x, y:a.y, angle, footLen, side });
+    });
+  });
+  footBadge.textContent = `👟 ${S.feet.length} ${S.feet.length===1?'foot':'feet'}`;
+  statusEl.textContent  = S.feet.length > 0 ? 'Tracking ✓' : 'Show feet to camera';
+  statusEl.className    = S.feet.length > 0 ? 'on' : 'off';
+  if (S.skeleton && poses[0]) drawSkeleton(poses[0].keypoints);
+}
+
+// ── Draw ───────────────────────────────────────────────────
+function drawShoes() {
+  if (!S.feet.length) return;
+  const W = shoeImg.width, H = shoeImg.height;
+  S.feet.forEach(({x,y,angle,footLen,side}) => {
+    const sc = (footLen / W) * S.scale;
+    ctx.save();
+    ctx.translate(x, y + S.yOff);
+    let rot = angle - Math.PI/2;
+    if (S.flip)   rot += Math.PI;
+    ctx.rotate(rot);
+    if (side==='right') ctx.scale(-1,1);
+    if (S.mirror)       ctx.scale(-1,1);
+    ctx.scale(sc,sc);
+    ctx.globalAlpha = 0.9;
+    ctx.drawImage(shoeImg, -W/2, -H/2);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+}
+
+function drawSkeleton(kps) {
+  [[13,15],[14,16]].forEach(([a,b]) => {
+    const ka=kps[a],kb=kps[b];
+    if(!ka||!kb||ka.score<0.2||kb.score<0.2) return;
+    ctx.strokeStyle='rgba(79,255,176,0.5)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(ka.x,ka.y); ctx.lineTo(kb.x,kb.y); ctx.stroke();
+  });
+  [13,14,15,16].forEach(i => {
+    const k=kps[i]; if(!k||k.score<0.2) return;
+    ctx.beginPath(); ctx.arc(k.x,k.y,5,0,Math.PI*2);
+    ctx.fillStyle = i>=15?'#ff6b6b':'#4fffb0'; ctx.fill();
+  });
+}
+
+loadModel();
 </script>
 </body>
 </html>
