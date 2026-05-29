@@ -25,12 +25,16 @@
     pointer-events:none;
   }
 
-  /* three.js canvas — on top of everything, NOT mirrored (we handle mirror in code) */
+  /* three.js canvas — transparent, shoe overlay only */
   #three-canvas {
     position:absolute; inset:0;
     width:100%; height:100%;
     pointer-events:none;
+    z-index:3;
   }
+
+  #sk-canvas { z-index:4; }
+  #video { z-index:1; }
 
   #loader { position:fixed; inset:0; background:#000; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
   #loader.hidden { display:none; }
@@ -136,6 +140,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('thre
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.setClearColor(0x000000, 0);
+renderer.domElement.style.background = 'transparent';
 
 const scene  = new THREE.Scene();
 const W = window.innerWidth, H = window.innerHeight;
@@ -245,7 +250,7 @@ async function loadModel() {
 }
 
 // ── CAMERA ────────────────────────────────────────────────
-document.getElementById('start-btn').onclick = async () => {
+async function startCamera() {
   startScr.classList.add('hidden');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -253,12 +258,15 @@ document.getElementById('start-btn').onclick = async () => {
     });
     video.srcObject=stream; await video.play();
   } catch {
-    try { video.srcObject=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); await video.play(); }
-    catch(e){ alert('Camera error: '+e.message); return; }
+    try {
+      const stream2 = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+      video.srcObject=stream2; await video.play();
+    } catch(e){ alert('Camera error: '+e.message); return; }
   }
   S.running=true;
   requestAnimationFrame(loop);
-};
+}
+document.getElementById('start-btn').onclick = startCamera;
 
 // ── MAIN LOOP ──────────────────────────────────────────────
 let lastD=0;
