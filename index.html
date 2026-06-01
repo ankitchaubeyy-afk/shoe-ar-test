@@ -28,7 +28,7 @@
     model-viewer {
       width: 100%; flex: 1;
       --poster-color: transparent;
-      background: radial-gradient(ellipse at 50% 40%, #1a1a28 0%, #0c0c0e 70%);
+      background: radial-gradient(ellipse at 50% 35%, #3d3d3d 0%, #282828 45%, #1a1a1a 100%);
     }
     body.env-sunset model-viewer { background: radial-gradient(ellipse at 50% 30%, #2d1a0e 0%, #1a0a18 50%, #0c0c0e 100%); }
     body.env-arctic model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f2d 0%, #071318 60%, #0c0c0e 100%); }
@@ -132,9 +132,9 @@
 
   <model-viewer id="viewer" src="shoe.glb" ar ar-modes="webxr scene-viewer quick-look"
     ar-scale="auto" ar-placement="floor" camera-controls auto-rotate auto-rotate-delay="1000"
-    rotation-per-second="15deg" shadow-intensity="1.5" shadow-softness="1" exposure="1.2"
+    rotation-per-second="15deg" shadow-intensity="0.8" shadow-softness="0.8" exposure="1.0"
     tone-mapping="commerce"
-    environment-image="https://modelviewer.dev/shared-assets/environments/neutral.hdr"
+    environment-image="https://modelviewer.dev/shared-assets/environments/aircraft_workshop_01_1k.hdr"
     alt="Shoe">
   </model-viewer>
 
