@@ -9,7 +9,8 @@
   #container { position:relative; width:100vw; height:100dvh; }
   #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); z-index:1; }
   #sk-canvas { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); pointer-events:none; z-index:2; }
-  #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; }
+  /* three-canvas must also be mirrored to match video feed */
+  #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; transform:scaleX(-1); }
 
   #loader { position:fixed; inset:0; background:#000; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
   #loader.hidden { display:none; }
@@ -149,7 +150,7 @@ window.addEventListener('resize', resizeRenderer);
 const groupL = new THREE.Group(); scene.add(groupL); groupL.visible = false;
 const groupR = new THREE.Group(); scene.add(groupR); groupR.visible = false;
 
-let shoeNormLength = 100; // shoe length in normalized units
+let shoeNormLength = 100; // shoe length in normalized units — set once on first load
 
 function setupGroup(gltf, group, mirrorX) {
   while(group.children.length) group.remove(group.children[0]);
@@ -158,15 +159,14 @@ function setupGroup(gltf, group, mirrorX) {
   const size  = box.getSize(new THREE.Vector3());
   const center= box.getCenter(new THREE.Vector3());
 
-  // Store shoe dimensions for scaling
-  shoeNormLength = size.x;
+  // Only store shoe length the first time (left shoe), so right shoe doesn't overwrite it
+  if (!mirrorX) {
+    // Use the longest axis as the "length" of the shoe
+    shoeNormLength = Math.max(size.x, size.y, size.z);
+  }
 
-  // Center the model at origin, shoe pointing along +X axis
+  // Center the model at origin
   model.position.sub(center);
-
-  // Rotate so shoe toe points in +X direction (adjust if needed)
-  // Most shoes exported from Blender face +Y or +Z
-  model.rotation.y = Math.PI / 2; // try rotating if shoe faces wrong way
 
   if (mirrorX) model.scale.x *= -1;
   model.traverse(n => { if(n.isMesh){ n.castShadow=true; n.receiveShadow=false; } });
@@ -309,29 +309,30 @@ function processPoses(poses, vw, vh) {
 
       const sw = window.innerWidth, sh = window.innerHeight;
 
-      // Map video-space → screen-space
-      // video has CSS transform:scaleX(-1), so we DON'T flip here —
-      // Three.js shoe will be placed in screen coords without mirroring
-      const sx = (ankle.x/vw) * sw;
+      // video has CSS transform:scaleX(-1), so we MUST flip keypoint X
+      // to match what the user sees on screen
+      const sx = (1 - ankle.x/vw) * sw;
       const sy = (ankle.y/vh) * sh;
 
-      // Foot length estimate: use knee–ankle distance if available,
-      // otherwise estimate from vertical position (lower = closer)
+      // Foot length estimate: use knee–ankle distance if available
       let footPx;
       if (knee) {
-        const ksx = (knee.x/vw)*sw, ksy = (knee.y/vh)*sh;
+        const ksx = (1 - knee.x/vw)*sw, ksy = (knee.y/vh)*sh;
         const legPx = Math.hypot(sx-ksx, sy-ksy);
-        footPx = legPx * 0.55; // foot ≈ 55% of lower leg
+        footPx = legPx * 0.6; // foot ≈ 60% of lower leg
       } else {
         footPx = 60 + (ankle.y/vh) * 100;
       }
 
-      // Foot angle: direction from knee → ankle = direction leg points
-      // Foot is roughly in the same direction
-      let angle = Math.PI/2; // default: pointing down
+      // Foot angle: direction from knee → ankle
+      // Note: screen Y is DOWN, so atan2 works correctly here without negation
+      let angle = 0; // default: pointing right
       if (knee) {
-        const ksx=(knee.x/vw)*sw, ksy=(knee.y/vh)*sh;
+        const ksx = (1 - knee.x/vw)*sw, ksy = (knee.y/vh)*sh;
         angle = Math.atan2(sy - ksy, sx - ksx);
+      } else {
+        // No knee — assume foot is roughly horizontal or pointing down
+        angle = Math.PI / 2; // pointing downward
       }
 
       raw[side] = { sx, sy, angle, footPx, side };
@@ -357,56 +358,48 @@ function processPoses(poses, vw, vh) {
   if(S.skeleton && poses[0]) drawSkeleton(poses[0].keypoints, vw, vh);
 }
 
-// ── UPDATE SHOES ──────────────────────────────────────────
 function updateShoes() {
   if(!S.shoeReady) return;
-  const sw = window.innerWidth, sh = window.innerHeight;
 
   [
-    { group:groupL, data:S.smoothL, mirX:false },
-    { group:groupR, data:S.smoothR, mirX:true  },
+    { group:groupL, data:S.smoothL, mirX:true  },   // left foot = mirrored in screen-space
+    { group:groupR, data:S.smoothR, mirX:false },
   ].forEach(({group, data, mirX}) => {
     if(!data){ group.visible=false; return; }
     group.visible = true;
 
-    // Foot direction vector (unit)
+    // Foot direction vector
     const dir_x = Math.cos(data.angle);
     const dir_y = Math.sin(data.angle);
 
-    // Place shoe so its CENTER is `fwd` pixels ahead of ankle
-    // "ahead" = in direction of foot (knee→ankle direction)
+    // Place shoe so ankle is at rear of shoe — offset forward toward toe
     const cx = data.sx + dir_x * S.fwd;
     const cy = data.sy + dir_y * S.fwd + S.yOff;
 
-    // Three ortho camera: origin=top-left, x right, y down
     group.position.set(cx, cy, 0);
 
-    // Scale: make shoe length = footPx pixels
+    // Scale: make shoe length match estimated foot pixel size
     const sc = (data.footPx / shoeNormLength) * S.scale;
-    group.scale.set(sc * (mirX?-1:1), sc, sc);
+    // Use mirX on X-scale for left foot, but NOT negated again since we already flipped coords
+    group.scale.set(sc * (mirX ? -1 : 1), sc, sc);
 
     // Rotation: shoe toe points in foot direction
-    // Three.js rotateZ: angle measured from +X axis CCW
-    let rot = data.angle + S.rotOff;
+    // screen Y is inverted vs math Y → negate angle for Three.js rotationZ
+    let rot = -data.angle + S.rotOff;
     if(S.flip) rot += Math.PI;
-    group.rotation.z = -rot; // negate because screen Y is flipped vs math Y
+    group.rotation.z = rot;
   });
 }
 
-// ── SKELETON ──────────────────────────────────────────────
 function drawSkeleton(kps, vw, vh) {
-  const sw=window.innerWidth, sh=window.innerHeight;
-  const toS = kp => ({ x:(kp.x/vw)*sw, y:(kp.y/vh)*sh });
-
   [[11,13],[13,15],[12,14],[14,16]].forEach(([a,b]) => {
     const ka=kps[a], kb=kps[b];
     if(!ka||!kb||ka.score<0.15||kb.score<0.15) return;
-    const pa=toS(ka), pb=toS(kb);
-    // sk-canvas is CSS-mirrored so we draw in video coords
+    // sk-canvas is CSS-mirrored, so draw in raw video coords (no flip needed)
     skCtx.strokeStyle='rgba(79,255,176,0.7)';
     skCtx.lineWidth=3;
     skCtx.beginPath();
-    skCtx.moveTo(ka.x*(vw/vw), ka.y);
+    skCtx.moveTo(ka.x, ka.y);
     skCtx.lineTo(kb.x, kb.y);
     skCtx.stroke();
   });
