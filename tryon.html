@@ -7,33 +7,50 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#000; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100dvh; }
   #container { position:relative; width:100vw; height:100dvh; }
-  #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); z-index:1; }
-  #sk-canvas { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); pointer-events:none; z-index:2; }
-  #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; transform:scaleX(-1); }
 
-  #loader { position:fixed; inset:0; background:#000; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+  /* Video mirrored for selfie feel — but back cam we keep natural */
+  #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
+  #sk-canvas   { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+  #three-canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; }
+
+  #loader { position:fixed; inset:0; background:#111; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
   #loader.hidden { display:none; }
   .ld-title { color:#e8d5b0; font-size:20px; letter-spacing:4px; font-weight:700; }
-  .ld-bar-wrap { width:220px; height:3px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
+  .ld-bar-wrap { width:240px; height:3px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
   .ld-bar { height:100%; background:#e8d5b0; width:0%; border-radius:3px; transition:width 0.3s; }
-  .ld-msg { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#555; text-align:center; max-width:260px; }
+  .ld-msg { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#666; text-align:center; max-width:280px; line-height:1.6; }
   .ld-retry { background:#e8d5b0; color:#000; border:none; border-radius:10px; padding:10px 24px; font-size:13px; font-weight:700; cursor:pointer; display:none; margin-top:8px; }
 
-  #ui { position:fixed; bottom:0; left:0; right:0; z-index:100; padding:10px 16px 34px; background:linear-gradient(to top, rgba(0,0,0,0.92) 60%, transparent); }
-  #status { text-align:center; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#555; margin-bottom:8px; }
-  #status.on { color:#4fffb0; } #status.off { color:#ff6b6b; }
+  #ui { position:fixed; bottom:0; left:0; right:0; z-index:100; padding:10px 16px 34px; background:linear-gradient(to top, rgba(0,0,0,0.95) 60%, transparent); }
+  #status { text-align:center; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#555; margin-bottom:8px; transition:color 0.3s; }
+  #status.on  { color:#4fffb0; }
+  #status.off { color:#ff6b6b; }
+  #status.warn{ color:#ffcc44; }
   .sl-row { display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#555; margin-bottom:5px; }
   .sl-row label { min-width:60px; }
   input[type=range] { flex:1; accent-color:#e8d5b0; height:3px; }
-  .sl-val { min-width:34px; color:#e8d5b0; font-weight:700; text-align:right; font-size:11px; }
+  .sl-val { min-width:38px; color:#e8d5b0; font-weight:700; text-align:right; font-size:11px; }
   .btns { display:flex; gap:8px; margin-top:8px; }
-  .btn { flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#888; border-radius:10px; padding:9px; font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:1px; }
-  .btn.on { background:rgba(232,213,176,0.12); border-color:#e8d5b0; color:#e8d5b0; }
+  .btn { flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#888; border-radius:10px; padding:9px; font-size:11px; cursor:pointer; font-family:inherit; letter-spacing:1px; transition:all 0.15s; }
+  .btn.on { background:rgba(232,213,176,0.15); border-color:#e8d5b0; color:#e8d5b0; }
 
-  #back-btn { position:fixed; top:16px; left:16px; z-index:200; background:rgba(0,0,0,0.6); color:#e8d5b0; font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:7px 13px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,0.2); }
-  #foot-badge { position:fixed; top:16px; right:16px; z-index:200; background:rgba(0,0,0,0.6); color:#4fffb0; font-size:11px; letter-spacing:2px; padding:7px 12px; border-radius:20px; }
-  #tip { position:fixed; top:56px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:#e8d5b0; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:5px 14px; border-radius:20px; text-align:center; z-index:200; opacity:1; transition:opacity 1s; pointer-events:none; white-space:nowrap; }
-  #tip.fade { opacity:0; }
+  #back-btn  { position:fixed; top:16px; left:16px; z-index:200; background:rgba(0,0,0,0.65); color:#e8d5b0; font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:7px 13px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,0.2); }
+  #foot-badge{ position:fixed; top:16px; right:16px; z-index:200; background:rgba(0,0,0,0.65); color:#4fffb0; font-size:11px; letter-spacing:2px; padding:7px 12px; border-radius:20px; transition:color 0.3s; }
+
+  /* Guide overlay shown when 0 feet */
+  #guide {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:150; pointer-events:none; text-align:center;
+    transition:opacity 0.5s;
+  }
+  #guide.hidden { opacity:0; }
+  .guide-ring {
+    width:180px; height:180px; border:2px dashed rgba(232,213,176,0.4);
+    border-radius:50%; margin:0 auto 14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .guide-foot { font-size:60px; opacity:0.5; }
+  .guide-text { font-size:12px; letter-spacing:2px; text-transform:uppercase; color:rgba(232,213,176,0.6); line-height:1.7; }
 </style>
 </head>
 <body>
@@ -41,7 +58,7 @@
 <div id="loader">
   <div class="ld-title">SHOE TRY-ON</div>
   <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-msg" id="ld-msg">Starting…</div>
+  <div class="ld-msg" id="ld-msg">Loading AI model…</div>
   <button class="ld-retry" id="ld-retry" onclick="location.reload()">↺ Retry</button>
 </div>
 
@@ -51,18 +68,22 @@
   <canvas id="three-canvas"></canvas>
 </div>
 
+<div id="guide">
+  <div class="guide-ring"><div class="guide-foot">🦶</div></div>
+  <div class="guide-text">Point camera at your feet<br>Keep both feet &amp; ankles in frame<br>Good lighting helps</div>
+</div>
+
 <a href="index.html" id="back-btn">← AR</a>
 <div id="foot-badge">👟 0 feet</div>
-<div id="tip">Point camera at your feet — knees visible helps tracking</div>
 
 <div id="ui">
-  <div id="status">Waiting…</div>
+  <div id="status" class="off">Searching for feet…</div>
   <div class="sl-row"><label>Scale</label>
     <input type="range" id="sl-scale" min="0.3" max="4" step="0.05" value="1.4">
     <span class="sl-val" id="v-scale">1.4</span></div>
   <div class="sl-row"><label>Forward</label>
-    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="20">
-    <span class="sl-val" id="v-fwd">20</span></div>
+    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="10">
+    <span class="sl-val" id="v-fwd">10</span></div>
   <div class="sl-row"><label>Up/Down</label>
     <input type="range" id="sl-y" min="-100" max="100" step="1" value="0">
     <span class="sl-val" id="v-y">0</span></div>
@@ -70,8 +91,8 @@
     <input type="range" id="sl-rot" min="-90" max="90" step="1" value="0">
     <span class="sl-val" id="v-rot">0°</span></div>
   <div class="btns">
-    <button class="btn" id="btn-sk">🦴 Skeleton</button>
-    <button class="btn" id="btn-flip">🔄 Flip</button>
+    <button class="btn" id="btn-sk">🦴 Landmarks</button>
+    <button class="btn" id="btn-flip">🔄 Flip Shoe</button>
   </div>
 </div>
 
@@ -79,37 +100,43 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
+// ─────────────────────────────────────────────────────────────
+// MediaPipe Pose uses 33 landmarks.
+// Key ones for feet (all in normalized 0-1 coords):
+//   27 = left_ankle    28 = right_ankle
+//   29 = left_heel     30 = right_heel
+//   31 = left_foot_index (big toe area)  32 = right_foot_index
+//   25 = left_knee     26 = right_knee
+// We use heel + foot_index to get a very accurate foot direction.
+// This works even in top-down views where knees may be off-screen.
+// ─────────────────────────────────────────────────────────────
+
 const S = {
-  detector:null, running:false,
-  skeleton:false, flip:false,
-  scale:1.4, fwd:20, yOff:0, rotOff:0,
-  feet:[],
-  shoeReady:false,
-  smoothL:null, smoothR:null,
-  // shoe bounding box measured in model units
-  shoeBox: null,
+  pose: null, running: false,
+  skeleton: false, flip: false,
+  scale: 1.4, fwd: 10, yOff: 0, rotOff: 0,
+  smoothL: null, smoothR: null,
+  shoeReady: false,
+  noDetectFrames: 0,
 };
 
-const video     = document.getElementById('video');
-const skCanvas  = document.getElementById('sk-canvas');
-const skCtx     = skCanvas.getContext('2d');
-const ldBar     = document.getElementById('ld-bar');
-const ldMsg     = document.getElementById('ld-msg');
-const loader    = document.getElementById('loader');
-const statusEl  = document.getElementById('status');
-const footBadge = document.getElementById('foot-badge');
-const retryBtn  = document.getElementById('ld-retry');
-const tipEl     = document.getElementById('tip');
+const video      = document.getElementById('video');
+const skCanvas   = document.getElementById('sk-canvas');
+const skCtx      = skCanvas.getContext('2d');
+const ldBar      = document.getElementById('ld-bar');
+const ldMsg      = document.getElementById('ld-msg');
+const loader     = document.getElementById('loader');
+const statusEl   = document.getElementById('status');
+const footBadge  = document.getElementById('foot-badge');
+const guideEl    = document.getElementById('guide');
+const retryBtn   = document.getElementById('ld-retry');
 
-// Fade tip after 5 seconds
-setTimeout(()=>{ tipEl.classList.add('fade'); }, 5000);
-
-// Sliders
+// ── Sliders ──────────────────────────────────────────────────
 const sliders = {
   'sl-scale': v => { S.scale = +v; document.getElementById('v-scale').textContent = (+v).toFixed(1); },
-  'sl-fwd':   v => { S.fwd   = +v; document.getElementById('v-fwd').textContent   = v; },
-  'sl-y':     v => { S.yOff  = +v; document.getElementById('v-y').textContent     = v; },
-  'sl-rot':   v => { S.rotOff= +v*Math.PI/180; document.getElementById('v-rot').textContent = v+'°'; },
+  'sl-fwd':   v => { S.fwd   = +v; document.getElementById('v-fwd').textContent   = Math.round(v); },
+  'sl-y':     v => { S.yOff  = +v; document.getElementById('v-y').textContent     = Math.round(v); },
+  'sl-rot':   v => { S.rotOff= +v*Math.PI/180; document.getElementById('v-rot').textContent = Math.round(v)+'°'; },
 };
 Object.keys(sliders).forEach(id => {
   const el = document.getElementById(id);
@@ -117,36 +144,32 @@ Object.keys(sliders).forEach(id => {
   sliders[id](el.value);
 });
 
-function tog(key,id){ S[key]=!S[key]; document.getElementById(id).classList.toggle('on',S[key]); }
+function tog(key, id) { S[key]=!S[key]; document.getElementById(id).classList.toggle('on', S[key]); }
 document.getElementById('btn-sk').onclick   = () => tog('skeleton','btn-sk');
 document.getElementById('btn-flip').onclick = () => tog('flip','btn-flip');
 
-// ── THREE.JS ────────────────────────────────────────────────
+// ── THREE.JS ─────────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
   canvas: document.getElementById('three-canvas'),
   alpha: true, antialias: true, premultipliedAlpha: false
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
-renderer.shadowMap.enabled = true;
 
 const scene  = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(0,1,1,0,0.1,2000);
 camera.position.z = 500;
 
-scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+scene.add(new THREE.AmbientLight(0xffffff, 2.2));
 const dir = new THREE.DirectionalLight(0xffffff, 2.5);
-dir.position.set(0.5, 1, 1);
-scene.add(dir);
+dir.position.set(0.5, 1, 1); scene.add(dir);
 const fill = new THREE.DirectionalLight(0xfff0e0, 1.0);
-fill.position.set(-1, 0.5, 0.5);
-scene.add(fill);
+fill.position.set(-1, 0.5, 0.5); scene.add(fill);
 
 function resizeRenderer() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h);
-  camera.right  = w;
-  camera.bottom = h;
+  camera.right = w; camera.bottom = h;
   camera.updateProjectionMatrix();
 }
 resizeRenderer();
@@ -154,361 +177,325 @@ window.addEventListener('resize', resizeRenderer);
 
 const groupL = new THREE.Group(); scene.add(groupL); groupL.visible = false;
 const groupR = new THREE.Group(); scene.add(groupR); groupR.visible = false;
-
-// shoeLength: length of shoe along its local X axis (normalized to 1 unit after centering)
-// We'll compute this from the actual bounding box of the loaded model
-let shoeModelLength = 1; // will be updated after load
+let shoeModelLength = 1;
 
 function setupGroup(gltf, group, mirrorX) {
   while(group.children.length) group.remove(group.children[0]);
-  const model = gltf.scene.clone(true);
-
-  // Compute bounding box BEFORE centering
-  const box  = new THREE.Box3().setFromObject(model);
-  const size = box.getSize(new THREE.Vector3());
+  const model  = gltf.scene.clone(true);
+  const box    = new THREE.Box3().setFromObject(model);
+  const size   = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
-
-  // The shoe's "length" axis — we need to figure out which axis the shoe runs along.
-  // For most shoe GLBs the longest dimension is the length (heel-to-toe).
-  if (!mirrorX) {
-    // Store the actual shoe length in model units
-    // We'll use X as length axis (most common for shoe exports)
-    // but fall back to the longest axis
-    shoeModelLength = Math.max(size.x, size.z); // shoes are typically long in X or Z
-    S.shoeBox = size;
-  }
-
-  // Center at origin so rotation pivots at shoe center
+  if (!mirrorX) shoeModelLength = Math.max(size.x, size.z);
   model.position.sub(center);
-
-  // Slight vertical adjust: move shoe down so the sole aligns to ankle, not the center
-  // Shift heel-side toward anchor (ankle) — move back along X by ~35% of length
-  // This places the mid-foot/arch above the ankle keypoint
-  model.position.x += (mirrorX ? 1 : -1) * (shoeModelLength * 0.10);
-
-  if (mirrorX) {
-    model.scale.x *= -1;
-  }
-  model.traverse(n => {
-    if(n.isMesh){
-      n.castShadow = true;
-      n.receiveShadow = false;
-      // Ensure materials are double-sided for correct rendering
-      if(n.material) {
-        if(Array.isArray(n.material)) {
-          n.material.forEach(m => { m.side = THREE.FrontSide; });
-        } else {
-          n.material.side = THREE.FrontSide;
-        }
-      }
-    }
-  });
+  if (mirrorX) model.scale.x *= -1;
+  model.traverse(n => { if(n.isMesh) n.castShadow = true; });
   group.add(model);
 }
 
 function loadShoeGLB() {
   return new Promise((resolve, reject) => {
-    const gltfLoader = new THREE.GLTFLoader();
-    gltfLoader.load('shoe.glb',
-      gltf => {
-        setupGroup(gltf, groupL, false);
-        setupGroup(gltf, groupR, true);
-        S.shoeReady = true;
-        resolve();
-      },
-      xhr => { ldBar.style.width = (75 + Math.round(xhr.loaded/(xhr.total||1)*20)) + '%'; },
-      err => reject(err)
+    new THREE.GLTFLoader().load('shoe.glb',
+      gltf => { setupGroup(gltf,groupL,false); setupGroup(gltf,groupR,true); S.shoeReady=true; resolve(); },
+      xhr  => { ldBar.style.width = (70 + Math.round(xhr.loaded/(xhr.total||1)*25))+'%'; },
+      err  => reject(err)
     );
   });
 }
 
-// ── LOAD SCRIPTS ───────────────────────────────────────────
-function loadScript(src, timeout=30000) {
+// ── Script loader ─────────────────────────────────────────────
+function loadScript(src, timeout=40000) {
   return new Promise((res,rej) => {
     const t = setTimeout(()=>rej(new Error('Timeout: '+src.split('/').pop())), timeout);
     const s = document.createElement('script');
-    s.src=src;
-    s.onload=()=>{ clearTimeout(t); res(); };
-    s.onerror=()=>{ clearTimeout(t); rej(new Error('Failed: '+src.split('/').pop())); };
+    s.src = src;
+    s.onload  = ()=>{ clearTimeout(t); res(); };
+    s.onerror = ()=>{ clearTimeout(t); rej(new Error('Failed to load: '+src.split('/').pop())); };
     document.head.appendChild(s);
   });
 }
 
+// ── Main loader ───────────────────────────────────────────────
 async function loadModel() {
-  const retryT = setTimeout(()=>{ retryBtn.style.display='block'; }, 35000);
+  const retryT = setTimeout(()=>{ retryBtn.style.display='block'; }, 45000);
   try {
-    ldMsg.textContent='AI engine (1/2)…'; ldBar.style.width='15%';
-    await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js');
+    // MediaPipe Pose — works far better than MoveNet for feet-only top-down views
+    // because it has dedicated heel + foot index landmarks (27-32)
+    ldMsg.textContent = 'Loading MediaPipe Pose…'; ldBar.style.width='20%';
+    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
 
-    ldMsg.textContent='Pose model (2/2)…'; ldBar.style.width='45%';
-    await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
-
-    ldMsg.textContent='WebGL init…'; ldBar.style.width='58%';
-    await tf.setBackend('webgl');
-    await tf.ready();
-
-    ldMsg.textContent='MoveNet detector…'; ldBar.style.width='70%';
-
-    // Use MULTIPOSE_LIGHTNING: better at detecting feet even when partially visible
-    // Falls back to SINGLEPOSE_THUNDER if multi fails (thunder is more accurate for single person)
-    try {
-      S.detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        {
-          modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
-          enableSmoothing: true,
-          enableTracking: true,
-          trackerType: poseDetection.TrackerType.BoundingBox,
-        }
-      );
-    } catch(e) {
-      console.warn('Multipose failed, falling back to Thunder:', e);
-      S.detector = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER, enableSmoothing: true }
-      );
-    }
-
-    ldMsg.textContent='Loading shoe…'; ldBar.style.width='75%';
+    ldMsg.textContent = 'Loading shoe model…'; ldBar.style.width='70%';
     await loadShoeGLB();
+
+    ldMsg.textContent = 'Initialising detector…'; ldBar.style.width='85%';
+    await initPose();
 
     clearTimeout(retryT);
     ldBar.style.width='100%'; ldMsg.textContent='Ready!';
     setTimeout(()=>{ loader.classList.add('hidden'); startCamera(); }, 300);
   } catch(err) {
     clearTimeout(retryT);
-    ldMsg.textContent='❌ '+err.message;
-    retryBtn.style.display='block';
+    ldMsg.textContent = '❌ '+err.message;
+    retryBtn.style.display = 'block';
     console.error(err);
   }
 }
 
-// ── CAMERA ─────────────────────────────────────────────────
+// ── MediaPipe Pose ────────────────────────────────────────────
+function initPose() {
+  return new Promise((resolve, reject) => {
+    const pose = new Pose({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    pose.setOptions({
+      modelComplexity: 1,        // 0=fast, 1=balanced, 2=accurate — 1 is best for mobile
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      smoothSegmentation: false,
+      minDetectionConfidence: 0.45,   // lower = detects more, including partial feet
+      minTrackingConfidence: 0.40,
+    });
+
+    pose.onResults(onPoseResults);
+
+    pose.initialize().then(() => {
+      S.pose = pose;
+      resolve();
+    }).catch(reject);
+  });
+}
+
+// ── Camera ────────────────────────────────────────────────────
 async function startCamera() {
   try {
-    // Prefer back camera on mobile (better for pointing at feet)
     const stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} },
-      audio:false
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 }, height: { ideal: 720 }
+      },
+      audio: false
     });
-    video.srcObject=stream; await video.play();
+    video.srcObject = stream;
+    await video.play();
   } catch {
     try {
-      const s2 = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-      video.srcObject=s2; await video.play();
-    } catch(e){ alert('Camera error: '+e.message); return; }
+      const s2 = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
+      video.srcObject = s2; await video.play();
+    } catch(e) { alert('Camera error: '+e.message); return; }
   }
-  S.running=true;
+
+  S.running = true;
   requestAnimationFrame(loop);
 }
 
-// ── SMOOTHING ──────────────────────────────────────────────
-// Exponential moving average — higher alpha = faster tracking, more jitter
-// Lower alpha = smoother but more lag. 0.4 is a good balance.
-function smooth(prev, next, alpha=0.4) {
+// ── Smooth helper ─────────────────────────────────────────────
+function smooth(prev, next, alpha=0.45) {
   if (!prev) return { ...next };
-
-  // Angle smoothing needs special care to handle wrap-around (e.g. -π to +π)
   let da = next.angle - prev.angle;
   while(da >  Math.PI) da -= 2*Math.PI;
   while(da < -Math.PI) da += 2*Math.PI;
-
   return {
-    sx:      prev.sx     + alpha*(next.sx    - prev.sx),
-    sy:      prev.sy     + alpha*(next.sy    - prev.sy),
+    sx:      prev.sx     + alpha*(next.sx     - prev.sx),
+    sy:      prev.sy     + alpha*(next.sy     - prev.sy),
     angle:   prev.angle  + alpha * da,
     footPx:  prev.footPx + alpha*(next.footPx - prev.footPx),
     side:    next.side,
   };
 }
 
-// ── MAIN LOOP ──────────────────────────────────────────────
-let lastD=0;
+// ── Pose results callback ─────────────────────────────────────
+// MediaPipe landmark indices for feet:
+// 27=left_ankle  28=right_ankle
+// 29=left_heel   30=right_heel
+// 31=left_foot_index  32=right_foot_index  (≈ base of big toe)
+// 25=left_knee   26=right_knee
+function onPoseResults(results) {
+  const vw = skCanvas.width  || window.innerWidth;
+  const vh = skCanvas.height || window.innerHeight;
+  skCtx.clearRect(0, 0, vw, vh);
+
+  const raw = { left:null, right:null };
+
+  if (results.poseLandmarks) {
+    const lm = results.poseLandmarks; // normalized 0-1
+    const sw = window.innerWidth, sh = window.innerHeight;
+
+    const get = (i, minVis=0.35) => (lm[i] && lm[i].visibility > minVis) ? lm[i] : null;
+    const getF= (i) => get(i, 0.20); // feet can have lower visibility score
+
+    [
+      {
+        ankle: getF(27), heel: getF(29), toe: getF(31),
+        knee:  get(25),  side: 'left'
+      },
+      {
+        ankle: getF(28), heel: getF(30), toe: getF(32),
+        knee:  get(26),  side: 'right'
+      },
+    ].forEach(({ ankle, heel, toe, knee, side }) => {
+      // Need at least ankle OR (heel + toe) to place shoe
+      if (!ankle && !(heel && toe)) return;
+
+      // Best anchor = midpoint of heel and ankle; fallback = ankle alone
+      let ax, ay;
+      if (heel && ankle) {
+        ax = ((heel.x + ankle.x) / 2) * sw;
+        ay = ((heel.y + ankle.y) / 2) * sh;
+      } else if (ankle) {
+        ax = ankle.x * sw;
+        ay = ankle.y * sh;
+      } else {
+        ax = ((heel.x + toe.x) / 2) * sw;
+        ay = ((heel.y + toe.y) / 2) * sh;
+      }
+
+      // ── Foot direction (heel → toe is most reliable) ──────
+      let angle;
+      if (heel && toe) {
+        // Direct heel-to-toe vector — most accurate
+        const hx = heel.x * sw, hy = heel.y * sh;
+        const tx = toe.x  * sw, ty = toe.y  * sh;
+        angle = Math.atan2(ty - hy, tx - hx);
+      } else if (knee && ankle) {
+        // Knee→ankle fallback
+        const kx = knee.x * sw,   ky = knee.y * sh;
+        const anx = ankle.x * sw, any = ankle.y * sh;
+        angle = Math.atan2(any - ky, anx - kx);
+      } else {
+        angle = side === 'left' ? 0 : Math.PI;
+      }
+
+      // ── Foot size in pixels ───────────────────────────────
+      let footPx;
+      if (heel && toe) {
+        // Heel-to-toe distance IS the foot length — perfect!
+        const hx = heel.x * sw, hy = heel.y * sh;
+        const tx = toe.x  * sw, ty = toe.y  * sh;
+        footPx = Math.hypot(tx - hx, ty - hy);
+        // Scale up slightly — foot_index is the ball of foot, not tip of longest toe
+        footPx *= 1.18;
+      } else if (knee && ankle) {
+        const kx = knee.x * sw, ky = knee.y * sh;
+        const anx = ankle.x * sw, any = ankle.y * sh;
+        footPx = Math.hypot(anx - kx, any - ky) * 0.72;
+      } else {
+        // Depth estimate from Y position in frame
+        const refY = ankle ? ankle.y : (heel.y + toe.y) / 2;
+        footPx = 80 + refY * 160;
+      }
+
+      footPx = Math.max(55, Math.min(footPx, 350));
+      raw[side] = { sx: ax, sy: ay, angle, footPx, side };
+    });
+
+    if (S.skeleton) drawLandmarks(lm, sw, sh);
+  }
+
+  // Smoothing
+  if (raw.left)  S.smoothL = smooth(S.smoothL, raw.left,  0.45);
+  if (raw.right) S.smoothR = smooth(S.smoothR, raw.right, 0.45);
+  if (!raw.left  && S.smoothL) S.smoothL = smooth(S.smoothL, S.smoothL, 0.06);
+  if (!raw.right && S.smoothR) S.smoothR = smooth(S.smoothR, S.smoothR, 0.06);
+
+  const detected = raw.left || raw.right;
+  const count    = [raw.left, raw.right].filter(Boolean).length;
+
+  footBadge.textContent = `👟 ${count} feet`;
+  statusEl.textContent  = detected ? `Tracking ${count === 2 ? 'both feet ✓' : '1 foot ✓'}` : 'Show feet to camera';
+  statusEl.className    = detected ? 'on' : 'off';
+
+  S.noDetectFrames = detected ? 0 : S.noDetectFrames + 1;
+  guideEl.classList.toggle('hidden', S.noDetectFrames < 15 || detected);
+}
+
+// ── Main render loop ──────────────────────────────────────────
+let lastSend = 0;
 async function loop(ts) {
-  if(!S.running) return;
+  if (!S.running) return;
   requestAnimationFrame(loop);
 
+  // Sync canvas size to video
   const vw = video.videoWidth  || window.innerWidth;
   const vh = video.videoHeight || window.innerHeight;
-  if(skCanvas.width !== vw){ skCanvas.width=vw; skCanvas.height=vh; }
-  skCtx.clearRect(0,0,vw,vh);
+  if (skCanvas.width !== vw) { skCanvas.width = vw; skCanvas.height = vh; }
 
-  // Run pose detection at ~18fps to avoid overloading GPU
-  if(S.detector && video.readyState>=2 && ts-lastD>55) {
-    lastD=ts;
-    try {
-      const poses = await S.detector.estimatePoses(video, {
-        maxPoses: 2,           // detect up to 2 people (helps with foot-only views)
-        flipHorizontal: false, // we handle flipping ourselves
-        scoreThreshold: 0.25,  // lower = more sensitive detection
-      });
-      processPoses(poses, vw, vh);
-    } catch(e){ console.warn(e); }
+  // Send frame to MediaPipe at ~20fps
+  if (S.pose && video.readyState >= 2 && ts - lastSend > 50) {
+    lastSend = ts;
+    try { await S.pose.send({ image: video }); } catch(e) { console.warn(e); }
   }
 
   updateShoes();
   renderer.render(scene, camera);
 }
 
-// ── POSE PROCESSING ────────────────────────────────────────
-// MoveNet keypoints:
-// 11=left_hip   12=right_hip
-// 13=left_knee  14=right_knee
-// 15=left_ankle 16=right_ankle
-function processPoses(poses, vw, vh) {
-  const raw = { left:null, right:null };
-  const sw = window.innerWidth, sh = window.innerHeight;
-
-  poses.forEach(pose => {
-    const kp  = pose.keypoints;
-
-    // Helper: get keypoint if above threshold
-    // We use lower thresholds for feet since they're often partially visible
-    const get  = (i, minScore=0.20) => (kp[i]?.score > minScore) ? kp[i] : null;
-    const getF = (i) => get(i, 0.15); // even lower for feet specifically
-
-    [
-      { ankle: getF(15), knee: get(13), hip: get(11), side:'left'  },
-      { ankle: getF(16), knee: get(14), hip: get(12), side:'right' },
-    ].forEach(({ankle, knee, hip, side}) => {
-      if(!ankle) return;
-
-      // video CSS transform:scaleX(-1) mirrors X, so flip keypoint X to match screen
-      const sx = (1 - ankle.x/vw) * sw;
-      const sy = (ankle.y/vh) * sh;
-
-      // ── Foot length estimation ──────────────────────────
-      // Priority: knee-ankle distance → hip-ankle fallback → depth-based estimate
-      let footPx;
-      let ksx, ksy;
-      if (knee) {
-        ksx = (1 - knee.x/vw)*sw;
-        ksy = (knee.y/vh)*sh;
-        const legPx = Math.hypot(sx-ksx, sy-ksy);
-        // Average adult foot ≈ 26% of total leg length
-        // Lower-leg (knee to ankle) ≈ 46% of leg, foot ≈ 57% of lower leg
-        footPx = legPx * 0.72; // tuned for typical shoe-on-foot appearance
-      } else if (hip) {
-        const hsx = (1 - hip.x/vw)*sw;
-        const hsy = (hip.y/vh)*sh;
-        const fullLegPx = Math.hypot(sx-hsx, sy-hsy);
-        footPx = fullLegPx * 0.30;
-      } else {
-        // No skeleton context — estimate from ankle position in frame
-        // Closer to bottom of frame = closer to camera = larger
-        const normY = ankle.y / vh;
-        footPx = 80 + normY * 140;
-      }
-
-      // Clamp foot size to sensible range
-      footPx = Math.max(50, Math.min(footPx, 300));
-
-      // ── Foot angle ──────────────────────────────────────
-      // Direction from knee → ankle = direction foot points
-      let angle;
-      if (knee) {
-        angle = Math.atan2(sy - ksy, sx - ksx);
-      } else {
-        // No knee visible — try to infer from foot position in frame
-        // If ankle is near bottom-center, assume foot points away from camera (downward ~90°)
-        // If ankle is to the side, assume roughly horizontal
-        const normX = sx / sw; // 0=left, 1=right
-        if (normX < 0.35) {
-          angle = 0; // left side → pointing right
-        } else if (normX > 0.65) {
-          angle = Math.PI; // right side → pointing left
-        } else {
-          angle = Math.PI * 0.5; // center → pointing down/away
-        }
-      }
-
-      raw[side] = { sx, sy, angle, footPx, side };
-    });
-  });
-
-  // Smooth existing detections; gently decay lost ones
-  if(raw.left)  S.smoothL = smooth(S.smoothL, raw.left,  0.40);
-  if(raw.right) S.smoothR = smooth(S.smoothR, raw.right, 0.40);
-
-  // Decay when temporarily lost (keeps shoe visible briefly without teleporting)
-  if(!raw.left  && S.smoothL) S.smoothL = smooth(S.smoothL, S.smoothL, 0.08);
-  if(!raw.right && S.smoothR) S.smoothR = smooth(S.smoothR, S.smoothR, 0.08);
-
-  S.feet = [];
-  if(S.smoothL) S.feet.push(S.smoothL);
-  if(S.smoothR) S.feet.push(S.smoothR);
-
-  const feetCount = Object.values(raw).filter(Boolean).length;
-  footBadge.textContent = `👟 ${feetCount} feet`;
-  const detected = raw.left || raw.right;
-  statusEl.textContent = detected ? 'Tracking ✓' : 'Show feet to camera';
-  statusEl.className   = detected ? 'on' : 'off';
-
-  if(S.skeleton && poses[0]) drawSkeleton(poses[0].keypoints, vw, vh);
-}
-
-// ── UPDATE SHOE POSITIONS ──────────────────────────────────
+// ── Position shoes ────────────────────────────────────────────
 function updateShoes() {
-  if(!S.shoeReady) return;
+  if (!S.shoeReady) return;
 
   [
-    { group:groupL, data:S.smoothL, isLeft:true  },
-    { group:groupR, data:S.smoothR, isLeft:false },
-  ].forEach(({group, data, isLeft}) => {
-    if(!data){ group.visible=false; return; }
+    { group: groupL, data: S.smoothL, isLeft: true  },
+    { group: groupR, data: S.smoothR, isLeft: false },
+  ].forEach(({ group, data, isLeft }) => {
+    if (!data) { group.visible = false; return; }
     group.visible = true;
 
     const dir_x = Math.cos(data.angle);
     const dir_y = Math.sin(data.angle);
 
-    // Anchor: place shoe so the HEEL is at the ankle keypoint.
-    // Then shift forward (toe direction) by fwd pixels.
-    // The shoe model is centered at origin with a small heel-side offset applied in setupGroup.
-    // Additional forward offset from slider lets user fine-tune.
+    // Place shoe: anchor at heel-ankle midpoint, shift toward toe by fwd offset
     const cx = data.sx + dir_x * S.fwd;
     const cy = data.sy + dir_y * S.fwd + S.yOff;
 
     group.position.set(cx, cy, 0);
 
-    // Scale: pixel size of foot / model length in model units
-    // shoeModelLength is the longest horizontal dimension of the shoe model
     const sc = (data.footPx / shoeModelLength) * S.scale;
-
-    // Mirror X for left foot (left shoe faces opposite direction)
     group.scale.set(sc * (isLeft ? -1 : 1), sc, sc);
 
-    // Rotation: toe points in foot direction
-    // Three.js screen Y is DOWN so angle already correct; negate for CCW convention
     let rot = -data.angle + S.rotOff;
-    if(S.flip) rot += Math.PI;
+    if (S.flip) rot += Math.PI;
     group.rotation.z = rot;
   });
 }
 
-// ── SKELETON DEBUG OVERLAY ─────────────────────────────────
-function drawSkeleton(kps, vw, vh) {
-  // Connections: hip-knee, knee-ankle for each leg
-  [[11,13],[13,15],[12,14],[14,16]].forEach(([a,b]) => {
-    const ka=kps[a], kb=kps[b];
-    if(!ka||!kb||ka.score<0.15||kb.score<0.15) return;
-    skCtx.strokeStyle='rgba(79,255,176,0.7)';
-    skCtx.lineWidth=3;
+// ── Skeleton/landmark debug overlay ──────────────────────────
+function drawLandmarks(lm, sw, sh) {
+  // Draw foot connections
+  const pairs = [[27,29],[29,31],[28,30],[30,32],[27,25],[28,26]]; // ankle-heel, heel-toe, ankle-knee
+  pairs.forEach(([a,b]) => {
+    const ka = lm[a], kb = lm[b];
+    if (!ka||!kb||(ka.visibility||0)<0.2||(kb.visibility||0)<0.2) return;
+    skCtx.strokeStyle = 'rgba(79,255,176,0.6)';
+    skCtx.lineWidth = 2.5;
     skCtx.beginPath();
-    skCtx.moveTo(ka.x, ka.y);
-    skCtx.lineTo(kb.x, kb.y);
+    skCtx.moveTo(ka.x*sw, ka.y*sh);
+    skCtx.lineTo(kb.x*sw, kb.y*sh);
     skCtx.stroke();
   });
 
-  [11,12,13,14,15,16].forEach(i => {
-    const k=kps[i]; if(!k||k.score<0.15) return;
-    // Draw confidence score
-    skCtx.beginPath(); skCtx.arc(k.x,k.y,i>=15?8:5,0,Math.PI*2);
-    skCtx.fillStyle = i>=15 ? '#ff6b6b' : i>=13 ? '#ffd700' : '#4fffb0';
+  // Draw key points with labels and confidence
+  const pts = [
+    {i:27,label:'L Ankle',color:'#ff6b6b'},
+    {i:28,label:'R Ankle',color:'#ff6b6b'},
+    {i:29,label:'L Heel', color:'#ffd700'},
+    {i:30,label:'R Heel', color:'#ffd700'},
+    {i:31,label:'L Toe',  color:'#4fffb0'},
+    {i:32,label:'R Toe',  color:'#4fffb0'},
+    {i:25,label:'L Knee', color:'#aaaaff'},
+    {i:26,label:'R Knee', color:'#aaaaff'},
+  ];
+  pts.forEach(({i, label, color}) => {
+    const k = lm[i];
+    if (!k || (k.visibility||0) < 0.15) return;
+    const x = k.x*sw, y = k.y*sh;
+    skCtx.beginPath();
+    skCtx.arc(x, y, i >= 29 ? 7 : 5, 0, Math.PI*2);
+    skCtx.fillStyle = color;
     skCtx.fill();
-    skCtx.fillStyle='#fff';
-    skCtx.font='10px monospace';
-    const label = i>=15 ? `ANKLE(${k.score.toFixed(2)})` : i>=13 ? 'KNEE' : 'HIP';
-    skCtx.fillText(label, k.x+8, k.y);
+    skCtx.fillStyle = '#fff';
+    skCtx.font = 'bold 10px monospace';
+    skCtx.fillText(`${label} (${((k.visibility||0)*100).toFixed(0)}%)`, x+9, y+4);
   });
 }
 
