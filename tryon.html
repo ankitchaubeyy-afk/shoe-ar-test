@@ -9,7 +9,6 @@
   #container { position:relative; width:100vw; height:100dvh; }
   #video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; transform:scaleX(-1); z-index:1; }
   #sk-canvas { position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); pointer-events:none; z-index:2; }
-  /* three-canvas must also be mirrored to match video feed */
   #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; transform:scaleX(-1); }
 
   #loader { position:fixed; inset:0; background:#000; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
@@ -33,6 +32,8 @@
 
   #back-btn { position:fixed; top:16px; left:16px; z-index:200; background:rgba(0,0,0,0.6); color:#e8d5b0; font-size:11px; letter-spacing:2px; text-transform:uppercase; padding:7px 13px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,0.2); }
   #foot-badge { position:fixed; top:16px; right:16px; z-index:200; background:rgba(0,0,0,0.6); color:#4fffb0; font-size:11px; letter-spacing:2px; padding:7px 12px; border-radius:20px; }
+  #tip { position:fixed; top:56px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:#e8d5b0; font-size:10px; letter-spacing:1.5px; text-transform:uppercase; padding:5px 14px; border-radius:20px; text-align:center; z-index:200; opacity:1; transition:opacity 1s; pointer-events:none; white-space:nowrap; }
+  #tip.fade { opacity:0; }
 </style>
 </head>
 <body>
@@ -52,6 +53,7 @@
 
 <a href="index.html" id="back-btn">← AR</a>
 <div id="foot-badge">👟 0 feet</div>
+<div id="tip">Point camera at your feet — knees visible helps tracking</div>
 
 <div id="ui">
   <div id="status">Waiting…</div>
@@ -59,8 +61,8 @@
     <input type="range" id="sl-scale" min="0.3" max="4" step="0.05" value="1.4">
     <span class="sl-val" id="v-scale">1.4</span></div>
   <div class="sl-row"><label>Forward</label>
-    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="40">
-    <span class="sl-val" id="v-fwd">40</span></div>
+    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="20">
+    <span class="sl-val" id="v-fwd">20</span></div>
   <div class="sl-row"><label>Up/Down</label>
     <input type="range" id="sl-y" min="-100" max="100" step="1" value="0">
     <span class="sl-val" id="v-y">0</span></div>
@@ -80,11 +82,12 @@
 const S = {
   detector:null, running:false,
   skeleton:false, flip:false,
-  scale:1.4, fwd:40, yOff:0, rotOff:0,
+  scale:1.4, fwd:20, yOff:0, rotOff:0,
   feet:[],
   shoeReady:false,
-  // smoothed positions
   smoothL:null, smoothR:null,
+  // shoe bounding box measured in model units
+  shoeBox: null,
 };
 
 const video     = document.getElementById('video');
@@ -96,6 +99,10 @@ const loader    = document.getElementById('loader');
 const statusEl  = document.getElementById('status');
 const footBadge = document.getElementById('foot-badge');
 const retryBtn  = document.getElementById('ld-retry');
+const tipEl     = document.getElementById('tip');
+
+// Fade tip after 5 seconds
+setTimeout(()=>{ tipEl.classList.add('fade'); }, 5000);
 
 // Sliders
 const sliders = {
@@ -114,7 +121,7 @@ function tog(key,id){ S[key]=!S[key]; document.getElementById(id).classList.togg
 document.getElementById('btn-sk').onclick   = () => tog('skeleton','btn-sk');
 document.getElementById('btn-flip').onclick = () => tog('flip','btn-flip');
 
-// ── THREE.JS ───────────────────────────────────────────────
+// ── THREE.JS ────────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({
   canvas: document.getElementById('three-canvas'),
   alpha: true, antialias: true, premultipliedAlpha: false
@@ -127,12 +134,11 @@ const scene  = new THREE.Scene();
 const camera = new THREE.OrthographicCamera(0,1,1,0,0.1,2000);
 camera.position.z = 500;
 
-// Lighting
-scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-const dir = new THREE.DirectionalLight(0xffffff, 2);
+scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+const dir = new THREE.DirectionalLight(0xffffff, 2.5);
 dir.position.set(0.5, 1, 1);
 scene.add(dir);
-const fill = new THREE.DirectionalLight(0xfff0e0, 0.8);
+const fill = new THREE.DirectionalLight(0xfff0e0, 1.0);
 fill.position.set(-1, 0.5, 0.5);
 scene.add(fill);
 
@@ -146,30 +152,57 @@ function resizeRenderer() {
 resizeRenderer();
 window.addEventListener('resize', resizeRenderer);
 
-// Shoe groups — each holds normalized shoe model
 const groupL = new THREE.Group(); scene.add(groupL); groupL.visible = false;
 const groupR = new THREE.Group(); scene.add(groupR); groupR.visible = false;
 
-let shoeNormLength = 100; // shoe length in normalized units — set once on first load
+// shoeLength: length of shoe along its local X axis (normalized to 1 unit after centering)
+// We'll compute this from the actual bounding box of the loaded model
+let shoeModelLength = 1; // will be updated after load
 
 function setupGroup(gltf, group, mirrorX) {
   while(group.children.length) group.remove(group.children[0]);
   const model = gltf.scene.clone(true);
-  const box   = new THREE.Box3().setFromObject(model);
-  const size  = box.getSize(new THREE.Vector3());
-  const center= box.getCenter(new THREE.Vector3());
 
-  // Only store shoe length the first time (left shoe), so right shoe doesn't overwrite it
+  // Compute bounding box BEFORE centering
+  const box  = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+
+  // The shoe's "length" axis — we need to figure out which axis the shoe runs along.
+  // For most shoe GLBs the longest dimension is the length (heel-to-toe).
   if (!mirrorX) {
-    // Use the longest axis as the "length" of the shoe
-    shoeNormLength = Math.max(size.x, size.y, size.z);
+    // Store the actual shoe length in model units
+    // We'll use X as length axis (most common for shoe exports)
+    // but fall back to the longest axis
+    shoeModelLength = Math.max(size.x, size.z); // shoes are typically long in X or Z
+    S.shoeBox = size;
   }
 
-  // Center the model at origin
+  // Center at origin so rotation pivots at shoe center
   model.position.sub(center);
 
-  if (mirrorX) model.scale.x *= -1;
-  model.traverse(n => { if(n.isMesh){ n.castShadow=true; n.receiveShadow=false; } });
+  // Slight vertical adjust: move shoe down so the sole aligns to ankle, not the center
+  // Shift heel-side toward anchor (ankle) — move back along X by ~35% of length
+  // This places the mid-foot/arch above the ankle keypoint
+  model.position.x += (mirrorX ? 1 : -1) * (shoeModelLength * 0.10);
+
+  if (mirrorX) {
+    model.scale.x *= -1;
+  }
+  model.traverse(n => {
+    if(n.isMesh){
+      n.castShadow = true;
+      n.receiveShadow = false;
+      // Ensure materials are double-sided for correct rendering
+      if(n.material) {
+        if(Array.isArray(n.material)) {
+          n.material.forEach(m => { m.side = THREE.FrontSide; });
+        } else {
+          n.material.side = THREE.FrontSide;
+        }
+      }
+    }
+  });
   group.add(model);
 }
 
@@ -189,7 +222,7 @@ function loadShoeGLB() {
   });
 }
 
-// ── LOAD SCRIPTS ──────────────────────────────────────────
+// ── LOAD SCRIPTS ───────────────────────────────────────────
 function loadScript(src, timeout=30000) {
   return new Promise((res,rej) => {
     const t = setTimeout(()=>rej(new Error('Timeout: '+src.split('/').pop())), timeout);
@@ -215,10 +248,26 @@ async function loadModel() {
     await tf.ready();
 
     ldMsg.textContent='MoveNet detector…'; ldBar.style.width='70%';
-    S.detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
-      { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING, enableSmoothing: true }
-    );
+
+    // Use MULTIPOSE_LIGHTNING: better at detecting feet even when partially visible
+    // Falls back to SINGLEPOSE_THUNDER if multi fails (thunder is more accurate for single person)
+    try {
+      S.detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        {
+          modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
+          enableSmoothing: true,
+          enableTracking: true,
+          trackerType: poseDetection.TrackerType.BoundingBox,
+        }
+      );
+    } catch(e) {
+      console.warn('Multipose failed, falling back to Thunder:', e);
+      S.detector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER, enableSmoothing: true }
+      );
+    }
 
     ldMsg.textContent='Loading shoe…'; ldBar.style.width='75%';
     await loadShoeGLB();
@@ -234,9 +283,10 @@ async function loadModel() {
   }
 }
 
-// ── CAMERA ────────────────────────────────────────────────
+// ── CAMERA ─────────────────────────────────────────────────
 async function startCamera() {
   try {
+    // Prefer back camera on mobile (better for pointing at feet)
     const stream = await navigator.mediaDevices.getUserMedia({
       video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} },
       audio:false
@@ -252,15 +302,22 @@ async function startCamera() {
   requestAnimationFrame(loop);
 }
 
-// ── SMOOTH helper ─────────────────────────────────────────
-// Exponential smoothing so shoe doesn't jitter
+// ── SMOOTHING ──────────────────────────────────────────────
+// Exponential moving average — higher alpha = faster tracking, more jitter
+// Lower alpha = smoother but more lag. 0.4 is a good balance.
 function smooth(prev, next, alpha=0.4) {
   if (!prev) return { ...next };
+
+  // Angle smoothing needs special care to handle wrap-around (e.g. -π to +π)
+  let da = next.angle - prev.angle;
+  while(da >  Math.PI) da -= 2*Math.PI;
+  while(da < -Math.PI) da += 2*Math.PI;
+
   return {
-    sx:      prev.sx      + alpha*(next.sx-prev.sx),
-    sy:      prev.sy      + alpha*(next.sy-prev.sy),
-    angle:   prev.angle   + alpha*(next.angle-prev.angle),
-    footPx:  prev.footPx  + alpha*(next.footPx-prev.footPx),
+    sx:      prev.sx     + alpha*(next.sx    - prev.sx),
+    sy:      prev.sy     + alpha*(next.sy    - prev.sy),
+    angle:   prev.angle  + alpha * da,
+    footPx:  prev.footPx + alpha*(next.footPx - prev.footPx),
     side:    next.side,
   };
 }
@@ -271,16 +328,20 @@ async function loop(ts) {
   if(!S.running) return;
   requestAnimationFrame(loop);
 
-  // Sync sk canvas resolution
   const vw = video.videoWidth  || window.innerWidth;
   const vh = video.videoHeight || window.innerHeight;
   if(skCanvas.width !== vw){ skCanvas.width=vw; skCanvas.height=vh; }
   skCtx.clearRect(0,0,vw,vh);
 
+  // Run pose detection at ~18fps to avoid overloading GPU
   if(S.detector && video.readyState>=2 && ts-lastD>55) {
     lastD=ts;
     try {
-      const poses = await S.detector.estimatePoses(video);
+      const poses = await S.detector.estimatePoses(video, {
+        maxPoses: 2,           // detect up to 2 people (helps with foot-only views)
+        flipHorizontal: false, // we handle flipping ourselves
+        scoreThreshold: 0.25,  // lower = more sensitive detection
+      });
       processPoses(poses, vw, vh);
     } catch(e){ console.warn(e); }
   }
@@ -289,113 +350,147 @@ async function loop(ts) {
   renderer.render(scene, camera);
 }
 
-// ── POSE PROCESSING ───────────────────────────────────────
+// ── POSE PROCESSING ────────────────────────────────────────
 // MoveNet keypoints:
-// 11=left_hip  12=right_hip
-// 13=left_knee 14=right_knee
+// 11=left_hip   12=right_hip
+// 13=left_knee  14=right_knee
 // 15=left_ankle 16=right_ankle
 function processPoses(poses, vw, vh) {
   const raw = { left:null, right:null };
+  const sw = window.innerWidth, sh = window.innerHeight;
 
   poses.forEach(pose => {
     const kp  = pose.keypoints;
-    const get = (i,minScore=0.15) => (kp[i]?.score>minScore) ? kp[i] : null;
+
+    // Helper: get keypoint if above threshold
+    // We use lower thresholds for feet since they're often partially visible
+    const get  = (i, minScore=0.20) => (kp[i]?.score > minScore) ? kp[i] : null;
+    const getF = (i) => get(i, 0.15); // even lower for feet specifically
 
     [
-      { ankle:get(15), knee:get(13), hip:get(11), side:'left'  },
-      { ankle:get(16), knee:get(14), hip:get(12), side:'right' },
+      { ankle: getF(15), knee: get(13), hip: get(11), side:'left'  },
+      { ankle: getF(16), knee: get(14), hip: get(12), side:'right' },
     ].forEach(({ankle, knee, hip, side}) => {
       if(!ankle) return;
 
-      const sw = window.innerWidth, sh = window.innerHeight;
-
-      // video has CSS transform:scaleX(-1), so we MUST flip keypoint X
-      // to match what the user sees on screen
+      // video CSS transform:scaleX(-1) mirrors X, so flip keypoint X to match screen
       const sx = (1 - ankle.x/vw) * sw;
       const sy = (ankle.y/vh) * sh;
 
-      // Foot length estimate: use knee–ankle distance if available
+      // ── Foot length estimation ──────────────────────────
+      // Priority: knee-ankle distance → hip-ankle fallback → depth-based estimate
       let footPx;
+      let ksx, ksy;
       if (knee) {
-        const ksx = (1 - knee.x/vw)*sw, ksy = (knee.y/vh)*sh;
+        ksx = (1 - knee.x/vw)*sw;
+        ksy = (knee.y/vh)*sh;
         const legPx = Math.hypot(sx-ksx, sy-ksy);
-        footPx = legPx * 0.6; // foot ≈ 60% of lower leg
+        // Average adult foot ≈ 26% of total leg length
+        // Lower-leg (knee to ankle) ≈ 46% of leg, foot ≈ 57% of lower leg
+        footPx = legPx * 0.72; // tuned for typical shoe-on-foot appearance
+      } else if (hip) {
+        const hsx = (1 - hip.x/vw)*sw;
+        const hsy = (hip.y/vh)*sh;
+        const fullLegPx = Math.hypot(sx-hsx, sy-hsy);
+        footPx = fullLegPx * 0.30;
       } else {
-        footPx = 60 + (ankle.y/vh) * 100;
+        // No skeleton context — estimate from ankle position in frame
+        // Closer to bottom of frame = closer to camera = larger
+        const normY = ankle.y / vh;
+        footPx = 80 + normY * 140;
       }
 
-      // Foot angle: direction from knee → ankle
-      // Note: screen Y is DOWN, so atan2 works correctly here without negation
-      let angle = 0; // default: pointing right
+      // Clamp foot size to sensible range
+      footPx = Math.max(50, Math.min(footPx, 300));
+
+      // ── Foot angle ──────────────────────────────────────
+      // Direction from knee → ankle = direction foot points
+      let angle;
       if (knee) {
-        const ksx = (1 - knee.x/vw)*sw, ksy = (knee.y/vh)*sh;
         angle = Math.atan2(sy - ksy, sx - ksx);
       } else {
-        // No knee — assume foot is roughly horizontal or pointing down
-        angle = Math.PI / 2; // pointing downward
+        // No knee visible — try to infer from foot position in frame
+        // If ankle is near bottom-center, assume foot points away from camera (downward ~90°)
+        // If ankle is to the side, assume roughly horizontal
+        const normX = sx / sw; // 0=left, 1=right
+        if (normX < 0.35) {
+          angle = 0; // left side → pointing right
+        } else if (normX > 0.65) {
+          angle = Math.PI; // right side → pointing left
+        } else {
+          angle = Math.PI * 0.5; // center → pointing down/away
+        }
       }
 
       raw[side] = { sx, sy, angle, footPx, side };
     });
   });
 
-  // Apply smoothing
-  if(raw.left)  S.smoothL = smooth(S.smoothL,  raw.left,  0.35);
-  if(raw.right) S.smoothR = smooth(S.smoothR, raw.right, 0.35);
-  if(!raw.left  && S.smoothL) S.smoothL = smooth(S.smoothL, S.smoothL, 0.1); // decay
-  if(!raw.right && S.smoothR) S.smoothR = smooth(S.smoothR, S.smoothR, 0.1);
+  // Smooth existing detections; gently decay lost ones
+  if(raw.left)  S.smoothL = smooth(S.smoothL, raw.left,  0.40);
+  if(raw.right) S.smoothR = smooth(S.smoothR, raw.right, 0.40);
+
+  // Decay when temporarily lost (keeps shoe visible briefly without teleporting)
+  if(!raw.left  && S.smoothL) S.smoothL = smooth(S.smoothL, S.smoothL, 0.08);
+  if(!raw.right && S.smoothR) S.smoothR = smooth(S.smoothR, S.smoothR, 0.08);
 
   S.feet = [];
   if(S.smoothL) S.feet.push(S.smoothL);
   if(S.smoothR) S.feet.push(S.smoothR);
 
-  footBadge.textContent = `👟 ${Object.values(raw).filter(Boolean).length} feet`;
+  const feetCount = Object.values(raw).filter(Boolean).length;
+  footBadge.textContent = `👟 ${feetCount} feet`;
   const detected = raw.left || raw.right;
   statusEl.textContent = detected ? 'Tracking ✓' : 'Show feet to camera';
   statusEl.className   = detected ? 'on' : 'off';
 
-  // Skeleton
   if(S.skeleton && poses[0]) drawSkeleton(poses[0].keypoints, vw, vh);
 }
 
+// ── UPDATE SHOE POSITIONS ──────────────────────────────────
 function updateShoes() {
   if(!S.shoeReady) return;
 
   [
-    { group:groupL, data:S.smoothL, mirX:true  },   // left foot = mirrored in screen-space
-    { group:groupR, data:S.smoothR, mirX:false },
-  ].forEach(({group, data, mirX}) => {
+    { group:groupL, data:S.smoothL, isLeft:true  },
+    { group:groupR, data:S.smoothR, isLeft:false },
+  ].forEach(({group, data, isLeft}) => {
     if(!data){ group.visible=false; return; }
     group.visible = true;
 
-    // Foot direction vector
     const dir_x = Math.cos(data.angle);
     const dir_y = Math.sin(data.angle);
 
-    // Place shoe so ankle is at rear of shoe — offset forward toward toe
+    // Anchor: place shoe so the HEEL is at the ankle keypoint.
+    // Then shift forward (toe direction) by fwd pixels.
+    // The shoe model is centered at origin with a small heel-side offset applied in setupGroup.
+    // Additional forward offset from slider lets user fine-tune.
     const cx = data.sx + dir_x * S.fwd;
     const cy = data.sy + dir_y * S.fwd + S.yOff;
 
     group.position.set(cx, cy, 0);
 
-    // Scale: make shoe length match estimated foot pixel size
-    const sc = (data.footPx / shoeNormLength) * S.scale;
-    // Use mirX on X-scale for left foot, but NOT negated again since we already flipped coords
-    group.scale.set(sc * (mirX ? -1 : 1), sc, sc);
+    // Scale: pixel size of foot / model length in model units
+    // shoeModelLength is the longest horizontal dimension of the shoe model
+    const sc = (data.footPx / shoeModelLength) * S.scale;
 
-    // Rotation: shoe toe points in foot direction
-    // screen Y is inverted vs math Y → negate angle for Three.js rotationZ
+    // Mirror X for left foot (left shoe faces opposite direction)
+    group.scale.set(sc * (isLeft ? -1 : 1), sc, sc);
+
+    // Rotation: toe points in foot direction
+    // Three.js screen Y is DOWN so angle already correct; negate for CCW convention
     let rot = -data.angle + S.rotOff;
     if(S.flip) rot += Math.PI;
     group.rotation.z = rot;
   });
 }
 
+// ── SKELETON DEBUG OVERLAY ─────────────────────────────────
 function drawSkeleton(kps, vw, vh) {
+  // Connections: hip-knee, knee-ankle for each leg
   [[11,13],[13,15],[12,14],[14,16]].forEach(([a,b]) => {
     const ka=kps[a], kb=kps[b];
     if(!ka||!kb||ka.score<0.15||kb.score<0.15) return;
-    // sk-canvas is CSS-mirrored, so draw in raw video coords (no flip needed)
     skCtx.strokeStyle='rgba(79,255,176,0.7)';
     skCtx.lineWidth=3;
     skCtx.beginPath();
@@ -406,11 +501,14 @@ function drawSkeleton(kps, vw, vh) {
 
   [11,12,13,14,15,16].forEach(i => {
     const k=kps[i]; if(!k||k.score<0.15) return;
+    // Draw confidence score
     skCtx.beginPath(); skCtx.arc(k.x,k.y,i>=15?8:5,0,Math.PI*2);
     skCtx.fillStyle = i>=15 ? '#ff6b6b' : i>=13 ? '#ffd700' : '#4fffb0';
     skCtx.fill();
-    skCtx.fillStyle='#fff'; skCtx.font='10px monospace';
-    skCtx.fillText(i>=15?'ANKLE':i>=13?'KNEE':'HIP', k.x+8, k.y);
+    skCtx.fillStyle='#fff';
+    skCtx.font='10px monospace';
+    const label = i>=15 ? `ANKLE(${k.score.toFixed(2)})` : i>=13 ? 'KNEE' : 'HIP';
+    skCtx.fillText(label, k.x+8, k.y);
   });
 }
 
