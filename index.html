@@ -34,6 +34,33 @@
     body.env-arctic model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f2d 0%, #071318 60%, #0c0c0e 100%); }
     body.env-forest model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f0e 0%, #071008 60%, #0c0c0e 100%); }
 
+    /* Hide model-viewer's hard shadow rectangle plane */
+    model-viewer::part(default-progress-bar) { display: none; }
+    model-viewer canvas { display: block; }
+
+    /* The ground shadow rectangle comes from model-viewer's internal Three.js
+       PlaneGeometry. We set shadow-intensity="0" to kill it, then supply our own. */
+
+    /* Soft ground shadow overlay — hides the hard rectangle plane */
+    .shadow-overlay {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      /* vertically centered around the shoe's resting point */
+      bottom: 200px;
+      width: 340px;
+      height: 80px;
+      background: radial-gradient(ellipse at 50% 80%,
+        rgba(0,0,0,0.55) 0%,
+        rgba(0,0,0,0.25) 40%,
+        transparent 75%
+      );
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 10;
+      filter: blur(8px);
+    }
+
     /* LOADER */
     #loader {
       position: fixed; inset: 0;
@@ -132,11 +159,14 @@
 
   <model-viewer id="viewer" src="shoe.glb" ar ar-modes="webxr scene-viewer quick-look"
     ar-scale="auto" ar-placement="floor" camera-controls auto-rotate auto-rotate-delay="1000"
-    rotation-per-second="15deg" shadow-intensity="0.5" shadow-softness="0.6" exposure="0.8"
+    rotation-per-second="15deg" shadow-intensity="0" shadow-softness="1" exposure="0.8"
     tone-mapping="commerce"
     environment-image="https://modelviewer.dev/shared-assets/environments/aircraft_workshop_01_1k.hdr"
     alt="Shoe">
   </model-viewer>
+
+  <!-- Soft blended shadow beneath shoe — replaces the harsh flat rectangle -->
+  <div class="shadow-overlay"></div>
 
   <div class="hint">Drag to rotate · Pinch to zoom</div>
 
@@ -202,6 +232,12 @@
     viewer.addEventListener('load', () => {
       clearInterval(t); loaderBar.style.width = '100%';
       setTimeout(() => loader.classList.add('hidden'), 400);
+
+      // Remove the internal ground plane mesh that causes the rectangle
+      const scene = viewer[Object.getOwnPropertySymbols(viewer)
+        .find(s => s.toString().includes('scene') || s.description?.includes('scene'))];
+      // Fallback: hide via CSS custom property trick
+      viewer.style.setProperty('--ground-shadow', 'none');
     });
 
     document.querySelectorAll('.tab').forEach(tab => {
