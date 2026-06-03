@@ -278,46 +278,29 @@ function setStatus(text, cls) {
 }
 
 function errorText(err) {
-  return (err && (err.message || err.name)) ? (err.name ? err.name + ': ' + err.message : err.message) : String(err);
+  if (!err) return 'Unknown error';
+  return err.message || err.name || String(err);
 }
 
-async function checkFileExists(path) {
-  const url = path + '?v=' + Date.now();
-  const res = await fetch(url, { method: 'GET', cache: 'no-store' });
-  if (!res.ok) throw new Error('Effect file not found: ' + path + ' (HTTP ' + res.status + ')');
-  return true;
+async function checkEffectFile(path) {
+  const res = await fetch(path + '?v=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error(path + ' not found. HTTP ' + res.status);
 }
 
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' timeout after ' + Math.round(ms/1000) + 's')), ms))
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' timeout')), ms))
   ]);
 }
 
 async function init() {
   try {
-    // ── 1. Camera permission ──────────────────────────────────
-    setProgress(10, 'Requesting camera…');
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: CONFIG.facingMode },
-          width:  { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-    } catch (e) {
-      // Fallback: any camera
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    }
-    // Stop stream immediately — DeepAR will take over the camera
-    stream.getTracks().forEach(t => t.stop());
-
-    // ── 2. Init DeepAR ────────────────────────────────────────
-    setProgress(30, 'Loading DeepAR…');
+    // ── 1. Init DeepAR ────────────────────────────────────────
+    // Do NOT pre-open/stop the camera here. On some Android phones it locks
+    // the camera and DeepAR then throws: "Could not start video source".
+    // Let DeepAR request and manage the camera directly.
+    setProgress(20, 'Starting camera…');
 
     const canvas = document.getElementById('deepar-canvas');
 
@@ -348,14 +331,13 @@ async function init() {
 
     setProgress(70, 'Loading effect…');
 
-    // ── 3. Load shoe effect ───────────────────────────────────
+    // ── 2. Load shoe effect ───────────────────────────────────
     if (CONFIG.effectPath) {
       try {
-        setProgress(72, 'Checking effect file…');
-        await checkFileExists(CONFIG.effectPath);
-
-        setProgress(80, 'Loading shoe effect…');
-        await withTimeout(deepAR.switchEffect(CONFIG.effectPath), 30000, 'DeepAR effect loading');
+        setProgress(75, 'Checking shoe effect…');
+        await checkEffectFile(CONFIG.effectPath);
+        setProgress(85, 'Loading shoe effect…');
+        await withTimeout(deepAR.switchEffect(CONFIG.effectPath), 45000, 'Effect loading');
         setStatus('Tracking feet', 'on');
         effectNote.classList.remove('show');
 
@@ -373,7 +355,7 @@ async function init() {
 
       } catch (e) {
         console.warn('Effect load failed:', e);
-        const msg = '❌ Effect load failed.\n' + errorText(e) + '\n\nCheck: shoe.deepar name, GitHub path, file size, and DeepAR key.';
+        const msg = '❌ Effect load failed. ' + errorText(e);
         setStatus('Effect error', 'off');
         effectNote.classList.add('show');
         showError(msg);
