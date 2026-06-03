@@ -4,598 +4,430 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Shoe Try-On</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#000; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100dvh; touch-action:none; }
-  #container { position:relative; width:100vw; height:100dvh; }
-  #video        { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
-  #sk-canvas    { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
-  #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; }
-  /* tap target layer — only active in manual mode */
-  #tap-layer { position:absolute; inset:0; z-index:4; display:none; cursor:crosshair; }
-  #tap-layer.active { display:block; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-  #loader { position:fixed; inset:0; background:#111; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
-  #loader.hidden { display:none; }
-  .ld-title { color:#e8d5b0; font-size:18px; letter-spacing:4px; font-weight:700; }
-  .ld-bar-wrap { width:240px; height:3px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; }
-  .ld-bar { height:100%; background:#e8d5b0; width:0%; border-radius:3px; transition:width 0.3s; }
-  .ld-msg { font-size:11px; letter-spacing:2px; text-transform:uppercase; color:#555; text-align:center; max-width:280px; line-height:1.7; }
-  .ld-retry { background:#e8d5b0; color:#000; border:none; border-radius:10px; padding:10px 24px; font-size:13px; font-weight:700; cursor:pointer; display:none; margin-top:6px; }
+  body {
+    background: #000;
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+    height: 100dvh;
+    touch-action: none;
+  }
 
-  #ui { position:fixed; bottom:0; left:0; right:0; z-index:100; padding:8px 14px 32px; background:linear-gradient(to top,rgba(0,0,0,0.95) 55%,transparent); }
-  #status { text-align:center; font-size:11px; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; transition:color .3s; color:#555; }
-  #status.on   { color:#4fffb0; }
-  #status.off  { color:#ff6b6b; }
-  #status.warn { color:#ffcc44; }
+  #ar-container {
+    position: relative;
+    width: 100vw;
+    height: 100dvh;
+  }
 
-  .sl-row { display:flex; align-items:center; gap:8px; font-size:10px; letter-spacing:1px; text-transform:uppercase; color:#555; margin-bottom:4px; }
-  .sl-row label { min-width:58px; }
-  input[type=range] { flex:1; accent-color:#e8d5b0; height:3px; }
-  .sl-val { min-width:36px; color:#e8d5b0; font-weight:700; text-align:right; font-size:10px; }
+  /* DeepAR renders into this canvas */
+  #deepar-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+  }
 
-  .btns  { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-  .btn   { flex:1; min-width:80px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); color:#888; border-radius:10px; padding:8px 6px; font-size:10px; cursor:pointer; font-family:inherit; letter-spacing:.8px; text-transform:uppercase; transition:all .15s; }
-  .btn.on { background:rgba(232,213,176,0.14); border-color:#e8d5b0; color:#e8d5b0; }
-  .btn.accent { background:rgba(79,255,176,0.1); border-color:#4fffb0; color:#4fffb0; }
+  /* ── Loader ── */
+  #loader {
+    position: fixed;
+    inset: 0;
+    background: #0a0a0a;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.5s;
+  }
+  #loader.hidden { opacity: 0; pointer-events: none; }
 
-  #back-btn   { position:fixed; top:14px; left:14px; z-index:200; background:rgba(0,0,0,.65); color:#e8d5b0; font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:7px 12px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,.2); }
-  #foot-badge { position:fixed; top:14px; right:14px; z-index:200; background:rgba(0,0,0,.65); color:#4fffb0; font-size:10px; letter-spacing:2px; padding:7px 11px; border-radius:20px; transition:color .3s; }
+  .ld-logo {
+    font-size: 40px;
+    margin-bottom: 4px;
+  }
+  .ld-title {
+    color: #e8d5b0;
+    font-size: 15px;
+    letter-spacing: 5px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .ld-bar-wrap {
+    width: 200px;
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .ld-bar {
+    height: 100%;
+    background: #e8d5b0;
+    width: 0%;
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+  .ld-msg {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #444;
+    text-align: center;
+    max-width: 260px;
+    line-height: 1.8;
+  }
+  .ld-error {
+    color: #ff6b6b;
+    font-size: 12px;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.7;
+    display: none;
+  }
+  .ld-retry {
+    background: #e8d5b0;
+    color: #000;
+    border: none;
+    border-radius: 20px;
+    padding: 10px 28px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    display: none;
+    margin-top: 4px;
+  }
 
-  /* mode indicator pill */
-  #mode-pill { position:fixed; top:50px; right:14px; z-index:200; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; padding:5px 10px; border-radius:20px; transition:all .3s; }
-  #mode-pill.auto   { background:rgba(79,255,176,.15);  color:#4fffb0; border:1px solid rgba(79,255,176,.3);  }
-  #mode-pill.manual { background:rgba(255,204,68,.15);  color:#ffcc44; border:1px solid rgba(255,204,68,.3);  }
+  /* ── Top bar ── */
+  #top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+    pointer-events: none;
+  }
 
-  /* tap crosshair guide */
-  #tap-hint { position:fixed; top:44%; left:50%; transform:translate(-50%,-50%); z-index:150; pointer-events:none; text-align:center; transition:opacity .4s; opacity:0; }
-  #tap-hint.show { opacity:1; }
-  .tap-ring { width:160px; height:160px; border:1.5px dashed rgba(255,204,68,.5); border-radius:50%; margin:0 auto 12px; display:flex; align-items:center; justify-content:center; }
-  .tap-icon { font-size:48px; opacity:.6; }
-  .tap-text { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:rgba(255,204,68,.7); line-height:1.8; }
+  #back-btn {
+    pointer-events: all;
+    background: rgba(0,0,0,0.55);
+    color: #e8d5b0;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 20px;
+    text-decoration: none;
+    border: 1px solid rgba(232,213,176,0.2);
+  }
 
-  /* placed shoe pin */
-  .shoe-pin { position:absolute; width:14px; height:14px; border-radius:50%; background:#e8d5b0; border:2px solid #000; transform:translate(-50%,-50%); z-index:5; pointer-events:none; }
+  #status-pill {
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #555;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border-radius: 20px;
+    transition: all 0.3s;
+  }
+  #status-pill.on  { color: #4fffb0; border-color: rgba(79,255,176,0.3); }
+  #status-pill.off { color: #ff6b6b; border-color: rgba(255,107,107,0.3); }
+  #status-pill.warn{ color: #ffcc44; border-color: rgba(255,204,68,0.3); }
+
+  /* ── Bottom hint ── */
+  #hint {
+    position: fixed;
+    bottom: 36px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.4);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border-radius: 20px;
+    white-space: nowrap;
+    transition: opacity 0.5s;
+  }
+  #hint.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── Effect-not-loaded notice ── */
+  #effect-notice {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 90;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s;
+  }
+  #effect-notice.show { opacity: 1; }
+  .en-icon  { font-size: 52px; margin-bottom: 10px; }
+  .en-text  {
+    color: rgba(255,255,255,0.35);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    line-height: 2;
+  }
 </style>
 </head>
 <body>
 
+<!-- Loader -->
 <div id="loader">
-  <div class="ld-title">SHOE TRY-ON</div>
+  <div class="ld-logo">👟</div>
+  <div class="ld-title">Shoe Try-On</div>
   <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-msg" id="ld-msg">Loading…</div>
+  <div class="ld-msg" id="ld-msg">Initialising…</div>
+  <div class="ld-error" id="ld-error"></div>
   <button class="ld-retry" id="ld-retry" onclick="location.reload()">↺ Retry</button>
 </div>
 
-<div id="container">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="sk-canvas"></canvas>
-  <canvas id="three-canvas"></canvas>
-  <div id="tap-layer"></div>
-</div>
+<!-- AR -->
+<div id="ar-container">
+  <canvas id="deepar-canvas"></canvas>
 
-<div id="tap-hint">
-  <div class="tap-ring"><div class="tap-icon">👆</div></div>
-  <div class="tap-text">Tap on each foot<br>to place the shoe</div>
-</div>
-
-<a href="index.html" id="back-btn">← AR</a>
-<div id="foot-badge">👟 0 feet</div>
-<div id="mode-pill" class="auto">AUTO</div>
-
-<div id="ui">
-  <div id="status" class="off">Searching for feet…</div>
-  <div class="sl-row"><label>Scale</label>
-    <input type="range" id="sl-scale" min="0.3" max="4" step="0.05" value="1.1">
-    <span class="sl-val" id="v-scale">1.1</span></div>
-  <div class="sl-row"><label>Forward</label>
-    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="0">
-    <span class="sl-val" id="v-fwd">0</span></div>
-  <div class="sl-row"><label>Up/Down</label>
-    <input type="range" id="sl-y" min="-100" max="100" step="1" value="0">
-    <span class="sl-val" id="v-y">0</span></div>
-  <div class="sl-row"><label>Rotate</label>
-    <input type="range" id="sl-rot" min="-90" max="90" step="1" value="0">
-    <span class="sl-val" id="v-rot">0°</span></div>
-  <div class="btns">
-    <button class="btn" id="btn-sk">🦴 Debug</button>
-    <button class="btn" id="btn-flip">🔄 Flip</button>
-    <button class="btn accent" id="btn-manual">👆 Manual</button>
-    <button class="btn" id="btn-clear" style="display:none">✕ Clear</button>
+  <div id="effect-notice">
+    <div class="en-icon">🦶</div>
+    <div class="en-text">No effect loaded<br>Add your .deepar file to see the shoe</div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<!-- Top bar -->
+<div id="top-bar">
+  <a href="index.html" id="back-btn">← AR</a>
+  <div id="status-pill" class="warn">Starting…</div>
+</div>
+
+<!-- Bottom hint -->
+<div id="hint" class="hidden">Point camera at your feet</div>
+
+<!--
+  ═══════════════════════════════════════════════════
+  DeepAR Web SDK
+  Replace YOUR_DEEPAR_KEY with your real licence key.
+  SDK docs: https://docs.deepar.ai/deepar-sdk/web
+  ═══════════════════════════════════════════════════
+-->
+<script src="https://cdn.jsdelivr.net/npm/deepar/js/deepar.js"></script>
 
 <script>
-// ─── State ───────────────────────────────────────────────────
-const S = {
-  pose: null, running: false,
-  skeleton: false, flip: false,
-  scale: 1.1, fwd: 0, yOff: 0, rotOff: 0,
-  smoothL: null, smoothR: null,
-  shoeReady: false,
-  // Manual mode
-  mode: 'auto',         // 'auto' | 'manual'
-  manualPins: [],       // [{x,y,angle,footPx}] up to 2
-  tapNext: 'left',      // which foot next tap places
-  noDetectCount: 0,
-};
+// ─────────────────────────────────────────────────────────────
+//  CONFIG — edit these to match your setup
+// ─────────────────────────────────────────────────────────────
+const CONFIG = {
+  licenceKey:  'f97a320f0d373e85b7b4dbc8bf3c8195b9a9c9b4ecda40bb30ae954342df66b29fa6ebae6e5017c0',   // ← paste your DeepAR licence key here
 
-const video       = document.getElementById('video');
-const skCanvas    = document.getElementById('sk-canvas');
-const skCtx       = skCanvas.getContext('2d');
+  // Path to your .deepar effect file for shoe try-on.
+  // Instructions to create one (free):
+  //   1. Go to https://effects.deepar.ai
+  //   2. Create a new project → choose "Body Tracking"
+  //   3. Import shoe.glb → attach to Left Foot + Right Foot bones
+  //   4. Export → save the .deepar file next to this HTML
+  //   5. Replace the path below with your filename, e.g. 'shoe_effect.deepar'
+  effectPath:  'shoe.deepar',       // Generated DeepAR shoe try-on effect
+
+  // Your shoe GLB — used as a fallback Three.js preview when no effect is loaded
+  // (DeepAR handles the real tracking; this is just so you can see something)
+  modelPath:   'shoe.glb',
+
+  // Camera
+  facingMode:  'environment',       // 'environment' = rear cam, 'user' = front cam
+};
+// ─────────────────────────────────────────────────────────────
+
 const ldBar       = document.getElementById('ld-bar');
 const ldMsg       = document.getElementById('ld-msg');
+const ldError     = document.getElementById('ld-error');
+const ldRetry     = document.getElementById('ld-retry');
 const loader      = document.getElementById('loader');
-const statusEl    = document.getElementById('status');
-const footBadge   = document.getElementById('foot-badge');
-const tapLayer    = document.getElementById('tap-layer');
-const tapHint     = document.getElementById('tap-hint');
-const modePill    = document.getElementById('mode-pill');
-const btnManual   = document.getElementById('btn-manual');
-const btnClear    = document.getElementById('btn-clear');
+const statusPill  = document.getElementById('status-pill');
+const hint        = document.getElementById('hint');
+const effectNote  = document.getElementById('effect-notice');
 
-// ── Sliders ───────────────────────────────────────────────────
-const sliders = {
-  'sl-scale': v => { S.scale  = +v; document.getElementById('v-scale').textContent = (+v).toFixed(1); },
-  'sl-fwd':   v => { S.fwd    = +v; document.getElementById('v-fwd').textContent   = Math.round(v); },
-  'sl-y':     v => { S.yOff   = +v; document.getElementById('v-y').textContent     = Math.round(v); },
-  'sl-rot':   v => { S.rotOff = +v*Math.PI/180; document.getElementById('v-rot').textContent = Math.round(v)+'°'; },
-};
-Object.keys(sliders).forEach(id => {
-  const el = document.getElementById(id);
-  el.oninput = e => sliders[id](e.target.value);
-  sliders[id](el.value);
-});
-
-function tog(key,id){ S[key]=!S[key]; document.getElementById(id).classList.toggle('on',S[key]); }
-document.getElementById('btn-sk').onclick   = ()=>tog('skeleton','btn-sk');
-document.getElementById('btn-flip').onclick = ()=>tog('flip','btn-flip');
-
-// ── Manual mode toggle ────────────────────────────────────────
-btnManual.onclick = () => {
-  if(S.mode === 'auto') enterManual();
-  else exitManual();
-};
-btnClear.onclick = () => {
-  S.manualPins = [];
-  S.tapNext = 'left';
-  document.querySelectorAll('.shoe-pin').forEach(p=>p.remove());
-  updateManualUI();
-};
-
-function enterManual() {
-  S.mode = 'manual';
-  S.manualPins = [];
-  S.tapNext = 'left';
-  S.smoothL = null; S.smoothR = null;
-  tapLayer.classList.add('active');
-  tapHint.classList.add('show');
-  btnManual.classList.add('on');
-  btnManual.textContent = '🤖 Auto';
-  btnClear.style.display = '';
-  modePill.className = 'manual'; modePill.textContent = 'MANUAL';
-  statusEl.textContent = 'Tap on your LEFT foot'; statusEl.className='warn';
-  groupL.visible = false; groupR.visible = false;
-}
-function exitManual() {
-  S.mode = 'auto';
-  tapLayer.classList.remove('active');
-  tapHint.classList.remove('show');
-  btnManual.classList.remove('on');
-  btnManual.textContent = '👆 Manual';
-  btnClear.style.display = 'none';
-  document.querySelectorAll('.shoe-pin').forEach(p=>p.remove());
-  S.manualPins = [];
-  modePill.className = 'auto'; modePill.textContent = 'AUTO';
-}
-function updateManualUI() {
-  const n = S.manualPins.length;
-  if(n === 0) { statusEl.textContent='Tap on your LEFT foot';  statusEl.className='warn'; tapHint.classList.add('show'); }
-  if(n === 1) { statusEl.textContent='Now tap your RIGHT foot'; statusEl.className='warn'; }
-  if(n >= 2) { statusEl.textContent='Shoes placed ✓  Adjust sliders'; statusEl.className='on'; tapHint.classList.remove('show'); }
-  footBadge.textContent = `👟 ${n} feet`;
+function setProgress(pct, msg) {
+  ldBar.style.width = pct + '%';
+  if (msg) ldMsg.textContent = msg;
 }
 
-// Tap to place shoe
-tapLayer.addEventListener('pointerdown', e => {
-  if(S.manualPins.length >= 2) return;
-  const x = e.clientX, y = e.clientY;
-  const sw = window.innerWidth, sh = window.innerHeight;
-
-  // Default angle: foot pointing away from camera center
-  // Assume feet are below screen center, pointing downward/inward
-  const cx = sw/2, cy = sh*0.7;
-  const angle = Math.atan2(y - cy*0.2, x - cx); // roughly toward bottom-center
-
-  // Foot size: estimate from y position (lower = closer = bigger)
-  const normY = y / sh;
-  const footPx = 90 + normY * 130;
-
-  const side = S.manualPins.length === 0 ? 'left' : 'right';
-  S.manualPins.push({ sx:x, sy:y, angle, footPx, side });
-
-  // Visual pin
-  const pin = document.createElement('div');
-  pin.className = 'shoe-pin';
-  pin.style.left = x+'px'; pin.style.top = y+'px';
-  document.getElementById('container').appendChild(pin);
-
-  updateManualUI();
-});
-
-// ── THREE.JS ──────────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({
-  canvas: document.getElementById('three-canvas'),
-  alpha:true, antialias:true, premultipliedAlpha:false
-});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-renderer.setClearColor(0x000000,0);
-
-const scene  = new THREE.Scene();
-const camera = new THREE.OrthographicCamera(0,1,1,0,0.1,2000);
-camera.position.z = 500;
-
-scene.add(new THREE.AmbientLight(0xffffff,2.2));
-const dir = new THREE.DirectionalLight(0xffffff,2.5); dir.position.set(0.5,1,1); scene.add(dir);
-const fill= new THREE.DirectionalLight(0xfff0e0,1.0); fill.position.set(-1,.5,.5); scene.add(fill);
-
-function resizeRenderer(){
-  const w=window.innerWidth,h=window.innerHeight;
-  renderer.setSize(w,h); camera.right=w; camera.bottom=h; camera.updateProjectionMatrix();
-}
-resizeRenderer(); window.addEventListener('resize',resizeRenderer);
-
-const groupL=new THREE.Group(); scene.add(groupL); groupL.visible=false;
-const groupR=new THREE.Group(); scene.add(groupR); groupR.visible=false;
-let shoeModelLength=1;
-
-function setupGroup(gltf,group,mirrorX){
-  while(group.children.length) group.remove(group.children[0]);
-  const model=gltf.scene.clone(true);
-  const box=new THREE.Box3().setFromObject(model);
-  const size=box.getSize(new THREE.Vector3());
-  const center=box.getCenter(new THREE.Vector3());
-  if(!mirrorX) shoeModelLength=Math.max(size.x,size.z);
-  model.position.sub(center);
-  if(mirrorX) model.scale.x*=-1;
-  model.traverse(n=>{ if(n.isMesh) n.castShadow=true; });
-  group.add(model);
+function showError(msg) {
+  ldError.textContent = msg;
+  ldError.style.display = 'block';
+  ldRetry.style.display = 'block';
+  ldMsg.style.display = 'none';
+  ldBar.style.width = '100%';
+  ldBar.style.background = '#ff6b6b';
 }
 
-function loadShoeGLB(){
-  return new Promise((res,rej)=>{
-    new THREE.GLTFLoader().load('shoe.glb',
-      gltf=>{ setupGroup(gltf,groupL,false); setupGroup(gltf,groupR,true); S.shoeReady=true; res(); },
-      xhr=>{ ldBar.style.width=(70+Math.round(xhr.loaded/(xhr.total||1)*25))+'%'; },
-      err=>rej(err)
-    );
-  });
+function setStatus(text, cls) {
+  statusPill.textContent = text;
+  statusPill.className = cls || '';
 }
 
-// ── Script loader ─────────────────────────────────────────────
-function loadScript(src,timeout=40000){
-  return new Promise((res,rej)=>{
-    const t=setTimeout(()=>rej(new Error('Timeout: '+src.split('/').pop())),timeout);
-    const s=document.createElement('script');
-    s.src=src; s.onload=()=>{clearTimeout(t);res();}; s.onerror=()=>{clearTimeout(t);rej(new Error('Failed: '+src.split('/').pop()));};
-    document.head.appendChild(s);
-  });
-}
-
-// ── Loader ────────────────────────────────────────────────────
-async function loadModel(){
-  const retryT=setTimeout(()=>{ retryBtn.style.display='block'; },45000);
-  try{
-    ldMsg.textContent='Loading shoe…'; ldBar.style.width='10%';
-    await loadShoeGLB();
-
-    ldMsg.textContent='Loading pose AI…'; ldBar.style.width='30%';
-
-    // Try MediaPipe first — best for top-down foot detection
-    let mpLoaded = false;
+async function init() {
+  try {
+    // ── 1. Camera permission ──────────────────────────────────
+    setProgress(10, 'Requesting camera…');
+    let stream;
     try {
-      await Promise.race([
-        (async()=>{
-          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
-          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
-          await initMediaPipe();
-          mpLoaded=true;
-        })(),
-        new Promise((_,r)=>setTimeout(()=>r(new Error('MP timeout')),20000))
-      ]);
-    } catch(e){
-      console.warn('MediaPipe failed, trying TF.js MoveNet:', e);
-    }
-
-    if(!mpLoaded){
-      ldMsg.textContent='Loading fallback AI…'; ldBar.style.width='55%';
-      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js');
-      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
-      await tf.setBackend('webgl'); await tf.ready();
-      S.pose = await poseDetection.createDetector(
-        poseDetection.SupportedModels.MoveNet,
-        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_THUNDER, enableSmoothing:true }
-      );
-      S.poseType = 'movenet';
-    } else {
-      S.poseType = 'mediapipe';
-    }
-
-    clearTimeout(retryT);
-    ldBar.style.width='100%'; ldMsg.textContent='Ready!';
-    setTimeout(()=>{ loader.classList.add('hidden'); startCamera(); },300);
-  } catch(err){
-    clearTimeout(retryT);
-    ldMsg.textContent='❌ '+err.message;
-    document.getElementById('ld-retry').style.display='block';
-    console.error(err);
-  }
-}
-
-// ── MediaPipe init ────────────────────────────────────────────
-function initMediaPipe(){
-  return new Promise((resolve,reject)=>{
-    const pose=new Pose({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
-    pose.setOptions({
-      modelComplexity:1,
-      smoothLandmarks:true,
-      enableSegmentation:false,
-      minDetectionConfidence:0.40,
-      minTrackingConfidence:0.35,
-    });
-    pose.onResults(onMediaPipeResults);
-    pose.initialize().then(()=>{ S.pose=pose; ldBar.style.width='65%'; resolve(); }).catch(reject);
-  });
-}
-
-// ── Camera ────────────────────────────────────────────────────
-async function startCamera(){
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false
-    });
-    video.srcObject=stream; await video.play();
-  }catch{
-    try{ const s2=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); video.srcObject=s2; await video.play(); }
-    catch(e){ alert('Camera error: '+e.message); return; }
-  }
-  S.running=true;
-  requestAnimationFrame(loop);
-}
-
-// ── Smooth ────────────────────────────────────────────────────
-function smooth(prev,next,alpha=0.45){
-  if(!prev) return{...next};
-  let da=next.angle-prev.angle;
-  while(da> Math.PI) da-=2*Math.PI;
-  while(da<-Math.PI) da+=2*Math.PI;
-  return{
-    sx:     prev.sx    +alpha*(next.sx    -prev.sx),
-    sy:     prev.sy    +alpha*(next.sy    -prev.sy),
-    angle:  prev.angle +alpha*da,
-    footPx: prev.footPx+alpha*(next.footPx-prev.footPx),
-    side:   next.side,
-  };
-}
-
-// ── MediaPipe results ─────────────────────────────────────────
-// LM indices: 27=L_ankle 28=R_ankle 29=L_heel 30=R_heel 31=L_toe 32=R_toe 25=L_knee 26=R_knee
-function onMediaPipeResults(results){
-  syncCanvasSize();
-  skCtx.clearRect(0,0,skCanvas.width,skCanvas.height);
-  if(S.mode==='manual') return;
-
-  const raw={left:null,right:null};
-
-  if(results.poseLandmarks){
-    const lm=results.poseLandmarks;
-    const sw=window.innerWidth, sh=window.innerHeight;
-    const get =(i,v=0.30)=>(lm[i]&&lm[i].visibility>v)?lm[i]:null;
-    const getF=(i)=>get(i,0.15);
-
-    [
-      {ankle:getF(27),heel:getF(29),toe:getF(31),knee:get(25),side:'left'},
-      {ankle:getF(28),heel:getF(30),toe:getF(32),knee:get(26),side:'right'},
-    ].forEach(({ankle,heel,toe,knee,side})=>{
-      if(!ankle&&!(heel&&toe)) return;
-
-      // Anchor = heel for most accurate shoe placement
-      let ax,ay;
-      if(heel){ ax=heel.x*sw; ay=heel.y*sh; }
-      else if(ankle){ ax=ankle.x*sw; ay=ankle.y*sh; }
-      else{ ax=((toe.x)*sw); ay=((toe.y)*sh); }
-
-      // Angle: heel→toe is ground truth, but clamp for front-facing camera stability
-      let angle=0;
-      if(heel&&toe){
-        const rawAngle=Math.atan2((toe.y-heel.y)*sh,(toe.x-heel.x)*sw);
-        // Clamp: if angle is near vertical (foot pointing toward camera), default to horizontal
-        const absA = Math.abs(rawAngle);
-        if(absA > Math.PI*0.35 && absA < Math.PI*0.65) {
-          // Foot is pointing toward/away camera — use side-based default
-          angle = side==='left' ? 0 : Math.PI;
-        } else {
-          angle = rawAngle;
-        }
-      } else if(knee&&ankle){
-        angle=Math.atan2((ankle.y-knee.y)*sh,(ankle.x-knee.x)*sw);
-      } else {
-        angle = side==='left' ? 0 : Math.PI;
-      }
-
-      // Size: heel-toe distance is exact foot length
-      let footPx;
-      if(heel&&toe){
-        footPx=Math.hypot((toe.x-heel.x)*sw,(toe.y-heel.y)*sh)*1.20;
-      } else if(knee&&ankle){
-        footPx=Math.hypot((ankle.x-knee.x)*sw,(ankle.y-knee.y)*sh)*0.72;
-      } else {
-        const ry=ankle?ankle.y:(heel.y+toe.y)/2;
-        footPx=90+ry*160;
-      }
-
-      raw[side]={sx:ax,sy:ay,angle,footPx:Math.max(55,Math.min(footPx,380)),side};
-    });
-
-    if(S.skeleton) drawMediaPipeLandmarks(lm,sw,sh);
-  }
-
-  applyRawDetections(raw);
-}
-
-// ── MoveNet results (fallback) ────────────────────────────────
-async function runMoveNet(){
-  if(!S.pose||video.readyState<2) return;
-  try{
-    const poses=await S.pose.estimatePoses(video,{maxPoses:2,flipHorizontal:false,scoreThreshold:0.25});
-    const sw=window.innerWidth,sh=window.innerHeight;
-    const vw=video.videoWidth||sw, vh=video.videoHeight||sh;
-    const raw={left:null,right:null};
-
-    poses.forEach(pose=>{
-      const kp=pose.keypoints;
-      const get=(i,s=0.20)=>(kp[i]?.score>s)?kp[i]:null;
-      [
-        {ankle:get(15),knee:get(13),side:'left'},
-        {ankle:get(16),knee:get(14),side:'right'},
-      ].forEach(({ankle,knee,side})=>{
-        if(!ankle) return;
-        const ax=(ankle.x/vw)*sw, ay=(ankle.y/vh)*sh;
-        let angle=side==='left'?0:Math.PI;
-        let footPx=90+ay/sh*140;
-        if(knee){
-          const kx=(knee.x/vw)*sw, ky=(knee.y/vh)*sh;
-          angle=Math.atan2(ay-ky,ax-kx);
-          footPx=Math.hypot(ax-kx,ay-ky)*0.72;
-        }
-        raw[side]={sx:ax,sy:ay,angle,footPx:Math.max(55,Math.min(footPx,380)),side};
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: CONFIG.facingMode },
+          width:  { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
       });
+    } catch (e) {
+      // Fallback: any camera
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    }
+    // Stop stream immediately — DeepAR will take over the camera
+    stream.getTracks().forEach(t => t.stop());
+
+    // ── 2. Init DeepAR ────────────────────────────────────────
+    setProgress(30, 'Loading DeepAR…');
+
+    const canvas = document.getElementById('deepar-canvas');
+
+    // Resize canvas to window
+    function resizeCanvas() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const deepAR = await deepar.initialize({
+      licenceKey: CONFIG.licenceKey,
+      canvas:     canvas,
+
+      // Tell DeepAR to use the device camera
+      additionalOptions: {
+        cameraConfig: {
+          facingMode: CONFIG.facingMode,
+        },
+      },
+
+      // Hint DeepAR to enable body tracking (foot detection)
+      // DeepAR automatically activates body tracking when an effect that
+      // uses body anchors is loaded. Setting this hint improves init speed.
+      hint: 'body',
     });
-    if(S.skeleton) skCtx.clearRect(0,0,skCanvas.width,skCanvas.height);
-    applyRawDetections(raw);
-  }catch(e){console.warn(e);}
-}
 
-function applyRawDetections(raw){
-  if(S.mode==='manual') return;
-  if(raw.left)  S.smoothL=smooth(S.smoothL, raw.left,  0.45);
-  if(raw.right) S.smoothR=smooth(S.smoothR, raw.right, 0.45);
-  if(!raw.left  && S.smoothL) S.smoothL=smooth(S.smoothL,S.smoothL,0.06);
-  if(!raw.right && S.smoothR) S.smoothR=smooth(S.smoothR,S.smoothR,0.06);
+    setProgress(70, 'Loading effect…');
 
-  const detected=raw.left||raw.right;
-  const count=[raw.left,raw.right].filter(Boolean).length;
-  footBadge.textContent=`👟 ${count} feet`;
-  statusEl.textContent=detected?`Tracking ${count===2?'both feet ✓':'1 foot ✓'}`:'No feet — try Manual mode 👆';
-  statusEl.className=detected?'on':'off';
+    // ── 3. Load shoe effect ───────────────────────────────────
+    if (CONFIG.effectPath) {
+      try {
+        await deepAR.switchEffect(CONFIG.effectPath);
+        setStatus('Tracking feet', 'on');
+        effectNote.classList.remove('show');
 
-  S.noDetectCount=detected?0:S.noDetectCount+1;
-  // After 60 frames (~3s) with no detection, nudge user toward manual
-  if(S.noDetectCount===60){
-    statusEl.textContent='Tap 👆 Manual if feet not detected';
-    statusEl.className='warn';
-  }
-}
+        // Listen for body tracking events if available
+        if (typeof deepAR.on === 'function') {
+          deepAR.on('bodyTrackingStarted', () => {
+            setStatus('Feet detected ✓', 'on');
+            hint.classList.add('hidden');
+          });
+          deepAR.on('bodyTrackingStopped', () => {
+            setStatus('Point at feet', 'warn');
+            hint.classList.remove('hidden');
+          });
+        }
 
-// ── Main loop ─────────────────────────────────────────────────
-let lastSend=0;
-async function loop(ts){
-  if(!S.running) return;
-  requestAnimationFrame(loop);
-  syncCanvasSize();
-
-  if(S.mode==='auto'){
-    if(S.poseType==='mediapipe' && S.pose && video.readyState>=2 && ts-lastSend>50){
-      lastSend=ts;
-      try{ await S.pose.send({image:video}); }catch(e){console.warn(e);}
-    } else if(S.poseType==='movenet' && ts-lastSend>60){
-      lastSend=ts;
-      await runMoveNet();
+      } catch (e) {
+        console.warn('Effect load failed:', e);
+        setStatus('Effect error', 'off');
+        effectNote.classList.add('show');
+      }
+    } else {
+      // No effect file yet — show placeholder notice
+      setStatus('No effect loaded', 'warn');
+      effectNote.classList.add('show');
+      hint.classList.remove('hidden');
+      hint.textContent = 'Add your .deepar effect file to see the shoe';
     }
-  }
 
-  updateShoes();
-  renderer.render(scene,camera);
-}
+    setProgress(100, 'Ready!');
 
-function syncCanvasSize(){
-  const vw=video.videoWidth||window.innerWidth, vh=video.videoHeight||window.innerHeight;
-  if(skCanvas.width!==vw){ skCanvas.width=vw; skCanvas.height=vh; }
-}
+    // ── 4. Hide loader ────────────────────────────────────────
+    setTimeout(() => {
+      loader.classList.add('hidden');
+      setTimeout(() => { loader.style.display = 'none'; }, 600);
+    }, 300);
 
-// ── Update shoes ──────────────────────────────────────────────
-function updateShoes(){
-  if(!S.shoeReady) return;
+  } catch (err) {
+    console.error('DeepAR init error:', err);
 
-  let dataL, dataR;
-
-  if(S.mode==='manual'){
-    // Build foot data from manual pins
-    dataL = S.manualPins[0] || null;
-    dataR = S.manualPins[1] || null;
-    // In manual mode, derive angle from the two pins if both present
-    if(dataL && dataR){
-      // Angle: vector from left pin toward right pin gives foot direction baseline
-      const dx=dataR.sx-dataL.sx, dy=dataR.sy-dataL.sy;
-      const baseAngle=Math.atan2(dy,dx);
-      // Left foot typically points slightly inward (perpendicular-ish to baseline)
-      dataL={...dataL, angle: baseAngle - Math.PI*0.5 + S.rotOff };
-      dataR={...dataR, angle: baseAngle + Math.PI*0.5 + S.rotOff };
+    // Friendly error messages
+    let msg = err.message || String(err);
+    if (msg.includes('licence') || msg.includes('license') || msg.includes('key')) {
+      msg = '❌ Invalid licence key.\nReplace YOUR_DEEPAR_KEY in the CONFIG section with your real DeepAR key from deepar.ai/dashboard';
+    } else if (msg.includes('camera') || msg.includes('NotAllowed') || msg.includes('Permission')) {
+      msg = '❌ Camera permission denied.\nPlease allow camera access and reload.';
+    } else if (msg.includes('WebGL') || msg.includes('webgl')) {
+      msg = '❌ WebGL not supported on this device/browser.';
+    } else {
+      msg = '❌ ' + msg;
     }
-  } else {
-    dataL=S.smoothL; dataR=S.smoothR;
+
+    showError(msg);
   }
-
-  [
-    {group:groupL, data:dataL, isLeft:true },
-    {group:groupR, data:dataR, isLeft:false},
-  ].forEach(({group,data,isLeft})=>{
-    if(!data){ group.visible=false; return; }
-    group.visible=true;
-
-    const angle = S.mode==='manual' ? (data.angle||0) : data.angle;
-    const dx=Math.cos(angle), dy=Math.sin(angle);
-
-    // fwd=0 means heel anchor; positive fwd shifts shoe forward along foot direction
-    // Add half shoe length offset so heel of 3D model aligns with heel landmark
-    const sc=(data.footPx/shoeModelLength)*S.scale;
-    const halfShoe = (shoeModelLength * sc) * 0.5;
-    const cx=data.sx + dx*(S.fwd + halfShoe);
-    const cy=data.sy + dy*(S.fwd + halfShoe) + S.yOff;
-    group.position.set(cx,cy,0);
-
-    group.scale.set(sc*(isLeft?-1:1),sc,sc);
-
-    let rot=-angle+(S.mode==='manual'?0:S.rotOff);
-    if(S.flip) rot+=Math.PI;
-    group.rotation.z=rot;
-  });
 }
 
-// ── Debug overlay ─────────────────────────────────────────────
-function drawMediaPipeLandmarks(lm,sw,sh){
-  [[27,29],[29,31],[28,30],[30,32],[27,25],[28,26]].forEach(([a,b])=>{
-    const ka=lm[a],kb=lm[b];
-    if(!ka||!kb||(ka.visibility||0)<0.15||(kb.visibility||0)<0.15) return;
-    skCtx.strokeStyle='rgba(79,255,176,0.6)'; skCtx.lineWidth=2.5;
-    skCtx.beginPath(); skCtx.moveTo(ka.x*sw,ka.y*sh); skCtx.lineTo(kb.x*sw,kb.y*sh); skCtx.stroke();
-  });
-  [{i:27,l:'L Ankle',c:'#ff6b6b'},{i:28,l:'R Ankle',c:'#ff6b6b'},
-   {i:29,l:'L Heel', c:'#ffd700'},{i:30,l:'R Heel', c:'#ffd700'},
-   {i:31,l:'L Toe',  c:'#4fffb0'},{i:32,l:'R Toe',  c:'#4fffb0'},
-   {i:25,l:'L Knee', c:'#aab'  },{i:26,l:'R Knee', c:'#aab'  }
-  ].forEach(({i,l,c})=>{
-    const k=lm[i]; if(!k||(k.visibility||0)<0.15) return;
-    skCtx.beginPath(); skCtx.arc(k.x*sw,k.y*sh,7,0,Math.PI*2);
-    skCtx.fillStyle=c; skCtx.fill();
-    skCtx.fillStyle='#fff'; skCtx.font='bold 10px monospace';
-    skCtx.fillText(`${l} ${((k.visibility||0)*100).toFixed(0)}%`,k.x*sw+9,k.y*sh+4);
-  });
-}
-
-loadModel();
+// Kick off
+init();
 </script>
+
+<!--
+═══════════════════════════════════════════════════════════════
+  SETUP GUIDE
+═══════════════════════════════════════════════════════════════
+
+  STEP 1 — Get your DeepAR licence key
+    → https://deepar.ai/dashboard
+    → Create a project, copy the Web SDK key
+    → Paste it into CONFIG.licenceKey above
+
+  STEP 2 — Create your shoe .deepar effect (FREE)
+    → Go to https://effects.deepar.ai
+    → New project → select "Body Tracking" template
+    → Import shoe.glb
+    → In the scene, attach the shoe mesh to:
+        Left Foot bone  (for left shoe)
+        Right Foot bone (for right shoe)
+    → Adjust scale/position to fit
+    → Export → save as e.g. shoe_effect.deepar
+    → Put it in the same folder as this HTML file
+    → Set CONFIG.effectPath = 'shoe_effect.deepar'
+
+  STEP 3 — Serve locally (required — file:// won't work)
+    → npx serve .
+    → or: python3 -m http.server 8080
+    → Open http://localhost:8080/tryon-deepar.html
+
+  STEP 4 — On mobile
+    → Make sure your phone and PC are on the same network
+    → Open http://YOUR_PC_IP:8080/tryon-deepar.html on your phone
+    → Allow camera when prompted
+
+  DeepAR docs: https://docs.deepar.ai/deepar-sdk/web
+═══════════════════════════════════════════════════════════════
+-->
+
 </body>
 </html>
