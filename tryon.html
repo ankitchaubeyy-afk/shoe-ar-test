@@ -277,6 +277,24 @@ function setStatus(text, cls) {
   statusPill.className = cls || '';
 }
 
+function errorText(err) {
+  return (err && (err.message || err.name)) ? (err.name ? err.name + ': ' + err.message : err.message) : String(err);
+}
+
+async function checkFileExists(path) {
+  const url = path + '?v=' + Date.now();
+  const res = await fetch(url, { method: 'GET', cache: 'no-store' });
+  if (!res.ok) throw new Error('Effect file not found: ' + path + ' (HTTP ' + res.status + ')');
+  return true;
+}
+
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' timeout after ' + Math.round(ms/1000) + 's')), ms))
+  ]);
+}
+
 async function init() {
   try {
     // ── 1. Camera permission ──────────────────────────────────
@@ -333,7 +351,11 @@ async function init() {
     // ── 3. Load shoe effect ───────────────────────────────────
     if (CONFIG.effectPath) {
       try {
-        await deepAR.switchEffect(CONFIG.effectPath);
+        setProgress(72, 'Checking effect file…');
+        await checkFileExists(CONFIG.effectPath);
+
+        setProgress(80, 'Loading shoe effect…');
+        await withTimeout(deepAR.switchEffect(CONFIG.effectPath), 30000, 'DeepAR effect loading');
         setStatus('Tracking feet', 'on');
         effectNote.classList.remove('show');
 
@@ -351,8 +373,12 @@ async function init() {
 
       } catch (e) {
         console.warn('Effect load failed:', e);
+        const msg = '❌ Effect load failed.\n' + errorText(e) + '\n\nCheck: shoe.deepar name, GitHub path, file size, and DeepAR key.';
         setStatus('Effect error', 'off');
         effectNote.classList.add('show');
+        showError(msg);
+        alert(msg);
+        return;
       }
     } else {
       // No effect file yet — show placeholder notice
@@ -386,6 +412,7 @@ async function init() {
     }
 
     showError(msg);
+    alert(msg);
   }
 }
 
