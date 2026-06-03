@@ -85,11 +85,11 @@
 <div id="ui">
   <div id="status" class="off">Searching for feet…</div>
   <div class="sl-row"><label>Scale</label>
-    <input type="range" id="sl-scale" min="0.3" max="4" step="0.05" value="1.4">
-    <span class="sl-val" id="v-scale">1.4</span></div>
+    <input type="range" id="sl-scale" min="0.3" max="4" step="0.05" value="1.1">
+    <span class="sl-val" id="v-scale">1.1</span></div>
   <div class="sl-row"><label>Forward</label>
-    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="10">
-    <span class="sl-val" id="v-fwd">10</span></div>
+    <input type="range" id="sl-fwd" min="-150" max="150" step="1" value="0">
+    <span class="sl-val" id="v-fwd">0</span></div>
   <div class="sl-row"><label>Up/Down</label>
     <input type="range" id="sl-y" min="-100" max="100" step="1" value="0">
     <span class="sl-val" id="v-y">0</span></div>
@@ -112,7 +112,7 @@
 const S = {
   pose: null, running: false,
   skeleton: false, flip: false,
-  scale: 1.4, fwd: 10, yOff: 0, rotOff: 0,
+  scale: 1.1, fwd: 0, yOff: 0, rotOff: 0,
   smoothL: null, smoothR: null,
   shoeReady: false,
   // Manual mode
@@ -401,16 +401,24 @@ function onMediaPipeResults(results){
     ].forEach(({ankle,heel,toe,knee,side})=>{
       if(!ankle&&!(heel&&toe)) return;
 
-      // Anchor = midpoint of heel and ankle (most stable point)
+      // Anchor = heel for most accurate shoe placement
       let ax,ay;
-      if(heel&&ankle){ ax=((heel.x+ankle.x)/2)*sw; ay=((heel.y+ankle.y)/2)*sh; }
+      if(heel){ ax=heel.x*sw; ay=heel.y*sh; }
       else if(ankle){ ax=ankle.x*sw; ay=ankle.y*sh; }
-      else{ ax=((heel.x+toe.x)/2)*sw; ay=((heel.y+toe.y)/2)*sh; }
+      else{ ax=((toe.x)*sw); ay=((toe.y)*sh); }
 
-      // Angle: heel→toe is ground truth
+      // Angle: heel→toe is ground truth, but clamp for front-facing camera stability
       let angle=0;
       if(heel&&toe){
-        angle=Math.atan2((toe.y-heel.y)*sh,(toe.x-heel.x)*sw);
+        const rawAngle=Math.atan2((toe.y-heel.y)*sh,(toe.x-heel.x)*sw);
+        // Clamp: if angle is near vertical (foot pointing toward camera), default to horizontal
+        const absA = Math.abs(rawAngle);
+        if(absA > Math.PI*0.35 && absA < Math.PI*0.65) {
+          // Foot is pointing toward/away camera — use side-based default
+          angle = side==='left' ? 0 : Math.PI;
+        } else {
+          angle = rawAngle;
+        }
       } else if(knee&&ankle){
         angle=Math.atan2((ankle.y-knee.y)*sh,(ankle.x-knee.x)*sw);
       } else {
@@ -550,11 +558,14 @@ function updateShoes(){
     const angle = S.mode==='manual' ? (data.angle||0) : data.angle;
     const dx=Math.cos(angle), dy=Math.sin(angle);
 
-    const cx=data.sx+dx*S.fwd;
-    const cy=data.sy+dy*S.fwd+S.yOff;
+    // fwd=0 means heel anchor; positive fwd shifts shoe forward along foot direction
+    // Add half shoe length offset so heel of 3D model aligns with heel landmark
+    const sc=(data.footPx/shoeModelLength)*S.scale;
+    const halfShoe = (shoeModelLength * sc) * 0.5;
+    const cx=data.sx + dx*(S.fwd + halfShoe);
+    const cy=data.sy + dy*(S.fwd + halfShoe) + S.yOff;
     group.position.set(cx,cy,0);
 
-    const sc=(data.footPx/shoeModelLength)*S.scale;
     group.scale.set(sc*(isLeft?-1:1),sc,sc);
 
     let rot=-angle+(S.mode==='manual'?0:S.rotOff);
