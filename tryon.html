@@ -2,126 +2,590 @@
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Shoe Try-On</title>
+  <title>Sole Studio — Virtual Try-On</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=DM+Mono:wght@300;400&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100dvh; }
 
-    #deepar-canvas {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
+    :root {
+      --cream: #f2ede6;
+      --gold: #c9a96e;
+      --gold-dark: #9b7a44;
+      --ink: #1a1714;
+      --ink-soft: #3d3730;
+      --glass: rgba(242,237,230,0.08);
+      --glass-border: rgba(201,169,110,0.25);
+    }
+
+    body {
+      background: var(--ink);
+      font-family: 'DM Mono', monospace;
+      overflow: hidden;
       height: 100dvh;
+      width: 100vw;
+    }
+
+    /* ── Camera + Canvas ── */
+    #video {
+      position: fixed; inset: 0;
+      width: 100vw; height: 100dvh;
       object-fit: cover;
+      transform: scaleX(-1);
     }
 
-    /* Loader */
+    #overlay {
+      position: fixed; inset: 0;
+      width: 100vw; height: 100dvh;
+      pointer-events: none;
+    }
+
+    /* ── Loader ── */
     #loader {
-      position: fixed; inset: 0; background: #0a0a0a; z-index: 999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-      transition: opacity .5s;
+      position: fixed; inset: 0;
+      background: var(--ink);
+      z-index: 900;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 20px;
+      transition: opacity 0.6s ease;
     }
-    #loader.hidden { opacity: 0; pointer-events: none; }
-    .ld-logo  { font-size: 44px; }
-    .ld-title { color: #e8d5b0; font-size: 14px; letter-spacing: 6px; font-weight: 700; text-transform: uppercase; }
-    .ld-bar-wrap { width: 220px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
-    .ld-bar  { height: 100%; background: #e8d5b0; width: 0%; border-radius: 2px; transition: width .4s; }
-    .ld-msg  { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #666; text-align: center; }
-    .ld-retry { background: #e8d5b0; color: #000; border: none; border-radius: 20px; padding: 10px 28px; font-size: 12px; font-weight: 700; cursor: pointer; display: none; margin-top: 4px; }
+    #loader.fade { opacity: 0; pointer-events: none; }
 
-    /* UI */
-    #back-btn { position: fixed; top: 16px; left: 16px; z-index: 200; background: rgba(0,0,0,.6); color: #e8d5b0; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 14px; border-radius: 20px; text-decoration: none; border: 1px solid rgba(232,213,176,.2); }
-    #hint { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 200; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 9px 20px; border-radius: 20px; white-space: nowrap; pointer-events: none; }
-    #hint.hidden { display: none; }
+    .loader-brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 11px;
+      letter-spacing: 8px;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+    .loader-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 42px;
+      font-weight: 300;
+      color: var(--cream);
+      letter-spacing: 2px;
+    }
+    .loader-track {
+      width: 200px; height: 1px;
+      background: rgba(201,169,110,0.15);
+      position: relative; overflow: hidden;
+    }
+    .loader-fill {
+      position: absolute; left: 0; top: 0;
+      height: 100%;
+      background: var(--gold);
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+    .loader-status {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(201,169,110,0.5);
+      text-transform: uppercase;
+    }
 
-    /* Screenshot button */
-    #fab { position: fixed; bottom: 32px; right: 20px; z-index: 200; width: 52px; height: 52px; border-radius: 50%; background: rgba(232,213,176,0.15); border: 1px solid rgba(232,213,176,.35); color: #e8d5b0; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s, background .15s; }
-    #fab:active { transform: scale(.92); background: rgba(232,213,176,.28); }
+    /* ── Top bar ── */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 20px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(26,23,20,0.7) 0%, transparent 100%);
+    }
+    .brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--cream);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+    .brand span { color: var(--gold); }
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 8px #4ade80;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-    /* Flash */
-    #flash { position: fixed; inset: 0; background: #fff; z-index: 500; opacity: 0; pointer-events: none; transition: opacity .1s; }
-    #flash.on { opacity: 0.7; }
+    /* ── Bottom controls ── */
+    #controls {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 24px 24px 40px;
+      background: linear-gradient(to top, rgba(26,23,20,0.85) 0%, transparent 100%);
+    }
+
+    .shoe-info {
+      margin-bottom: 20px;
+    }
+    .shoe-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 300;
+      color: var(--cream);
+      letter-spacing: 1px;
+    }
+    .shoe-sub {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: var(--gold);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .btn-row {
+      display: flex; gap: 12px; align-items: center;
+    }
+
+    .btn-capture {
+      flex: 1;
+      height: 52px;
+      background: var(--gold);
+      color: var(--ink);
+      border: none;
+      border-radius: 2px;
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-capture:active { background: var(--gold-dark); transform: scale(0.98); }
+
+    .btn-icon {
+      width: 52px; height: 52px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 2px;
+      color: var(--cream);
+      font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      user-select: none;
+    }
+    .btn-icon:active { background: rgba(201,169,110,0.2); }
+
+    /* ── Hint ── */
+    #hint {
+      position: fixed;
+      bottom: 160px;
+      left: 50%; transform: translateX(-50%);
+      z-index: 100;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      padding: 10px 20px;
+      border-radius: 1px;
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(242,237,230,0.6);
+      text-transform: uppercase;
+      white-space: nowrap;
+      transition: opacity 0.5s;
+    }
+    #hint.hidden { opacity: 0; pointer-events: none; }
+
+    /* ── Tracking frame ── */
+    #track-frame {
+      position: fixed;
+      border: 1px solid rgba(201,169,110,0.4);
+      border-radius: 2px;
+      transition: all 0.1s ease;
+      pointer-events: none;
+      display: none;
+    }
+    #track-frame::before, #track-frame::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      border-color: var(--gold);
+      border-style: solid;
+    }
+    #track-frame::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    #track-frame::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+    /* ── Flash ── */
+    #flash {
+      position: fixed; inset: 0;
+      background: #fff;
+      z-index: 800;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.08s;
+    }
+    #flash.on { opacity: 0.75; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      top: 80px; left: 50%; transform: translateX(-50%);
+      z-index: 700;
+      background: rgba(26,23,20,0.9);
+      border: 1px solid var(--glass-border);
+      color: var(--gold);
+      font-size: 9px; letter-spacing: 3px;
+      padding: 10px 20px;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ── Adjust controls ── */
+    #adjust {
+      position: fixed;
+      right: 20px; top: 50%; transform: translateY(-50%);
+      z-index: 100;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .adj-btn {
+      width: 40px; height: 40px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 2px;
+      color: var(--cream);
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .adj-btn:active { background: rgba(201,169,110,0.2); }
+    .adj-label {
+      font-size: 7px; letter-spacing: 2px;
+      color: rgba(201,169,110,0.5);
+      text-align: center;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
 
+<!-- Loader -->
 <div id="loader">
-  <div class="ld-logo">👟</div>
-  <div class="ld-title">Shoe Try-On</div>
-  <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-msg" id="ld-msg">Starting…</div>
-  <button class="ld-retry" id="ld-retry" onclick="location.reload()">↺ Retry</button>
+  <div class="loader-brand">Sole Studio</div>
+  <div class="loader-title">Try-On</div>
+  <div class="loader-track"><div class="loader-fill" id="ld-fill"></div></div>
+  <div class="loader-status" id="ld-status">Initializing…</div>
 </div>
 
-<canvas id="deepar-canvas"></canvas>
+<!-- Camera -->
+<video id="video" autoplay playsinline muted></video>
+<canvas id="overlay"></canvas>
 
+<!-- Flash -->
 <div id="flash"></div>
-<a href="index.html" id="back-btn">← Back</a>
-<div id="hint">Point camera at your feet</div>
-<div id="fab" onclick="snap()">📸</div>
+<div id="toast" id="toast"></div>
 
-<!-- DeepAR SDK -->
-<script src="https://cdn.jsdelivr.net/npm/deepar@5.6.6/js/deepar.js"></script>
+<!-- Track frame -->
+<div id="track-frame"></div>
+
+<!-- Top bar -->
+<div id="topbar">
+  <div class="brand">Sole <span>Studio</span></div>
+  <div class="status-dot" id="status-dot"></div>
+</div>
+
+<!-- Hint -->
+<div id="hint">Point camera at your feet</div>
+
+<!-- Right adjustments -->
+<div id="adjust">
+  <div class="adj-label">Size</div>
+  <div class="adj-btn" onclick="adjustScale(0.05)">+</div>
+  <div class="adj-btn" onclick="adjustScale(-0.05)">−</div>
+  <div style="margin-top:8px" class="adj-label">Lift</div>
+  <div class="adj-btn" onclick="adjustOffset(-5)">↑</div>
+  <div class="adj-btn" onclick="adjustOffset(5)">↓</div>
+</div>
+
+<!-- Bottom controls -->
+<div id="controls">
+  <div class="shoe-info">
+    <div class="shoe-name" id="shoe-name">Air Phantom Pro</div>
+    <div class="shoe-sub">Virtual Try-On · Live</div>
+  </div>
+  <div class="btn-row">
+    <div class="btn-icon" onclick="toggleMirror()" title="Flip">↔</div>
+    <button class="btn-capture" onclick="capture()">Capture Look</button>
+    <div class="btn-icon" onclick="cycleColor()" title="Color">◐</div>
+  </div>
+</div>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
 
 <script>
-  // ============================================================
-  //  PASTE YOUR DEEPAR API KEY BELOW
-  // ============================================================
-  const DEEPAR_API_KEY = '0025c1062ae79f4fa9a689f055e27b1a9cf770ed1585b3b2177e34895ccd348a757811214b0eae99';
-  // ============================================================
+const video   = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const ctx     = overlay.getContext('2d');
+const ldFill  = document.getElementById('ld-fill');
+const ldStatus= document.getElementById('ld-status');
+const loader  = document.getElementById('loader');
+const hint    = document.getElementById('hint');
+const toast   = document.getElementById('toast');
 
-  const ldBar  = document.getElementById('ld-bar');
-  const ldMsg  = document.getElementById('ld-msg');
-  const loader = document.getElementById('loader');
-  const hint   = document.getElementById('hint');
+let shoeImg   = null;
+let shoeScale = 1.0;
+let shoeOffsetY = 0;
+let mirrorShoe  = false;
+let lastLM      = null;
+let shoeLoaded  = false;
+let camRunning  = false;
 
-  async function boot() {
+// Shoe colors (tint overlays)
+const colors = ['none','#c0392b','#2980b9','#27ae60','#8e44ad','#f39c12'];
+let colorIdx = 0;
+
+// ── Resize canvas ──
+function resizeCanvas() {
+  overlay.width  = window.innerWidth;
+  overlay.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// ── Load shoe image ──
+function loadShoeImage() {
+  return new Promise((resolve) => {
+    // Try to load shoe.png / shoe.webp relative to this page
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { shoeImg = img; shoeLoaded = true; resolve(true); };
+    img.onerror = () => {
+      // Fallback: draw a stylized shoe shape on a canvas and use that
+      const fc = document.createElement('canvas');
+      fc.width = 400; fc.height = 200;
+      const fctx = fc.getContext('2d');
+      drawFallbackShoe(fctx, fc.width, fc.height);
+      const fi = new Image();
+      fi.src = fc.toDataURL();
+      fi.onload = () => { shoeImg = fi; shoeLoaded = true; resolve(true); };
+    };
+    img.src = 'shoe.png';
+  });
+}
+
+function drawFallbackShoe(c, w, h) {
+  c.clearRect(0,0,w,h);
+  // Sole
+  c.fillStyle = '#1a1714';
+  c.beginPath();
+  c.ellipse(w*0.5, h*0.82, w*0.46, h*0.12, 0, 0, Math.PI*2);
+  c.fill();
+  // Upper body
+  c.fillStyle = '#e8e0d4';
+  c.beginPath();
+  c.moveTo(w*0.08, h*0.75);
+  c.bezierCurveTo(w*0.08, h*0.4, w*0.2, h*0.2, w*0.45, h*0.18);
+  c.bezierCurveTo(w*0.7,  h*0.16, w*0.9, h*0.3, w*0.93, h*0.6);
+  c.bezierCurveTo(w*0.95, h*0.75, w*0.9, h*0.78, w*0.85, h*0.76);
+  c.lineTo(w*0.08, h*0.75);
+  c.closePath();
+  c.fill();
+  // Laces
+  c.strokeStyle = '#c9a96e';
+  c.lineWidth = 3;
+  for (let i=0; i<4; i++) {
+    const x = w*(0.3 + i*0.1);
+    c.beginPath(); c.moveTo(x, h*0.35); c.lineTo(x+w*0.06, h*0.55); c.stroke();
+    c.beginPath(); c.moveTo(x+w*0.06, h*0.35); c.lineTo(x, h*0.55); c.stroke();
+  }
+  // Stripe
+  c.strokeStyle = '#c9a96e';
+  c.lineWidth = 5;
+  c.beginPath();
+  c.moveTo(w*0.15, h*0.65);
+  c.bezierCurveTo(w*0.35, h*0.45, w*0.6, h*0.4, w*0.82, h*0.55);
+  c.stroke();
+}
+
+// ── Draw shoe on foot ──
+function drawShoeOnFoot(landmark, label) {
+  if (!shoeImg || !landmark) return;
+  // Mirror for front camera (video is CSS-mirrored)
+  const vw = overlay.width;
+  const vh = overlay.height;
+
+  const x = (1 - landmark.x) * vw;
+  const y = landmark.y * vh + shoeOffsetY;
+  const vis = landmark.visibility || 0;
+  if (vis < 0.3) return;
+
+  const baseW = vw * 0.22 * shoeScale;
+  const baseH = baseW * 0.5;
+
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, vis * 1.5);
+  ctx.translate(x, y);
+
+  if (label === 'right') ctx.scale(-1, 1);
+  if (mirrorShoe)        ctx.scale(-1, 1);
+
+  ctx.drawImage(shoeImg, -baseW*0.5, -baseH*0.6, baseW, baseH);
+
+  // Color tint
+  if (colors[colorIdx] !== 'none') {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.fillStyle = colors[colorIdx];
+    ctx.globalAlpha = 0.35 * Math.min(1, vis * 1.5);
+    ctx.fillRect(-baseW*0.5, -baseH*0.6, baseW, baseH);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  ctx.restore();
+}
+
+// ── MediaPipe Pose callback ──
+function onResults(results) {
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+  if (!results.poseLandmarks) return;
+
+  const lm = results.poseLandmarks;
+  lastLM = lm;
+
+  // Landmarks: 27=left ankle, 28=right ankle, 29=left heel, 30=right heel, 31=left toe, 32=right toe
+  const leftAnkle  = lm[27];
+  const rightAnkle = lm[28];
+
+  // Use ankle landmarks for shoe placement
+  if (leftAnkle)  drawShoeOnFoot(leftAnkle,  'left');
+  if (rightAnkle) drawShoeOnFoot(rightAnkle, 'right');
+
+  // Hide hint once feet detected
+  if ((leftAnkle?.visibility > 0.5) || (rightAnkle?.visibility > 0.5)) {
+    hint.classList.add('hidden');
+  }
+}
+
+// ── Init ──
+async function boot() {
+  setStatus('Loading shoe…', 15);
+  await loadShoeImage();
+
+  setStatus('Starting camera…', 40);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await new Promise(r => video.onloadedmetadata = r);
+    await video.play();
+    camRunning = true;
+  } catch(e) {
+    // Try front camera as fallback
     try {
-      ldMsg.textContent = 'Loading DeepAR…';
-      ldBar.style.width = '20%';
-
-      const deepAR = await deepar.initialize({
-        licenseKey: DEEPAR_API_KEY,
-        canvas: document.getElementById('deepar-canvas'),
-        additionalOptions: {
-          cameraConfig: {
-            facingMode: 'environment', // rear camera for feet
-          }
-        }
-      });
-
-      ldMsg.textContent = 'Loading shoe effect…';
-      ldBar.style.width = '60%';
-
-      await deepAR.switchEffect('shoe.deepar');
-
-      ldBar.style.width = '100%';
-      ldMsg.textContent = 'Ready!';
-      setTimeout(() => {
-        loader.classList.add('hidden');
-        setTimeout(() => hint.classList.add('hidden'), 4000);
-      }, 500);
-
-    } catch (err) {
-      console.error(err);
-      ldMsg.style.color = '#ff6b6b';
-      ldMsg.textContent = '❌ ' + err.message;
-      document.getElementById('ld-retry').style.display = 'block';
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      video.srcObject = stream;
+      await new Promise(r => video.onloadedmetadata = r);
+      await video.play();
+      camRunning = true;
+    } catch(e2) {
+      setStatus('Camera error: ' + e2.message, 100);
+      return;
     }
   }
 
-  function snap() {
-    const flash = document.getElementById('flash');
-    flash.classList.add('on');
-    setTimeout(() => flash.classList.remove('on'), 200);
-    const canvas = document.getElementById('deepar-canvas');
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = 'shoe-tryon-' + Date.now() + '.png';
-    a.click();
-  }
+  setStatus('Loading pose model…', 60);
 
-  boot();
+  const pose = new Pose({
+    locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${f}`
+  });
+  pose.setOptions({
+    modelComplexity: 1,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+  pose.onResults(onResults);
+
+  setStatus('Ready!', 100);
+  setTimeout(() => {
+    loader.classList.add('fade');
+    setTimeout(() => loader.style.display = 'none', 700);
+  }, 500);
+
+  // Process frames
+  async function processFrame() {
+    if (video.readyState >= 2) {
+      await pose.send({ image: video });
+    }
+    requestAnimationFrame(processFrame);
+  }
+  processFrame();
+}
+
+function setStatus(msg, pct) {
+  ldStatus.textContent = msg;
+  ldFill.style.width = pct + '%';
+}
+
+// ── Controls ──
+function adjustScale(delta) {
+  shoeScale = Math.max(0.4, Math.min(2.0, shoeScale + delta));
+  showToast('Size: ' + Math.round(shoeScale * 100) + '%');
+}
+
+function adjustOffset(delta) {
+  shoeOffsetY += delta;
+  showToast('Position adjusted');
+}
+
+function toggleMirror() {
+  mirrorShoe = !mirrorShoe;
+  showToast(mirrorShoe ? 'Mirror on' : 'Mirror off');
+}
+
+function cycleColor() {
+  colorIdx = (colorIdx + 1) % colors.length;
+  const names = ['Original','Red','Blue','Green','Purple','Gold'];
+  showToast('Color: ' + names[colorIdx]);
+}
+
+function capture() {
+  const flash = document.getElementById('flash');
+  flash.classList.add('on');
+  setTimeout(() => flash.classList.remove('on'), 150);
+
+  // Composite video + overlay
+  const out = document.createElement('canvas');
+  out.width  = overlay.width;
+  out.height = overlay.height;
+  const octx = out.getContext('2d');
+
+  // Draw video (mirrored to match display)
+  octx.save();
+  octx.scale(-1,1);
+  octx.drawImage(video, -out.width, 0, out.width, out.height);
+  octx.restore();
+
+  // Draw shoe overlay
+  octx.drawImage(overlay, 0, 0);
+
+  const a = document.createElement('a');
+  a.href = out.toDataURL('image/png');
+  a.download = 'sole-studio-' + Date.now() + '.png';
+  a.click();
+  showToast('Saved!');
+}
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1800);
+}
+
+boot();
 </script>
 </body>
 </html>
