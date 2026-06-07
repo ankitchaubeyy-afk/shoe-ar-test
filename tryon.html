@@ -1,43 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Shoe Try-On</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:#000; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100dvh; touch-action:none; }
-  #container { position:relative; width:100vw; height:100dvh; }
-  #video        { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
-  #sk-canvas    { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
-  #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; }
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Shoe Try-On</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100dvh; }
 
-  /* ── Loader ── */
-  #loader { position:fixed; inset:0; background:#0a0a0a; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:opacity .5s; }
-  #loader.hidden { opacity:0; pointer-events:none; }
-  .ld-logo  { font-size:44px; }
-  .ld-title { color:#e8d5b0; font-size:14px; letter-spacing:6px; font-weight:700; text-transform:uppercase; }
-  .ld-bar-wrap { width:220px; height:2px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
-  .ld-bar  { height:100%; background:#e8d5b0; width:0%; border-radius:2px; transition:width .35s; }
-  .ld-msg  { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#444; text-align:center; }
-  .ld-retry { background:#e8d5b0; color:#000; border:none; border-radius:20px; padding:10px 28px; font-size:12px; font-weight:700; cursor:pointer; display:none; margin-top:4px; }
+    #deepar-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+      object-fit: cover;
+    }
 
-  /* ── Top bar ── */
-  #back-btn   { position:fixed; top:16px; left:16px; z-index:200; background:rgba(0,0,0,.6); color:#e8d5b0; font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:8px 14px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,.2); }
-  #foot-badge { position:fixed; top:16px; right:16px; z-index:200; background:rgba(0,0,0,.6); color:#555; font-size:10px; letter-spacing:2px; padding:8px 12px; border-radius:20px; transition:color .3s; }
-  #foot-badge.on { color:#4fffb0; }
+    /* Loader */
+    #loader {
+      position: fixed; inset: 0; background: #0a0a0a; z-index: 999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      transition: opacity .5s;
+    }
+    #loader.hidden { opacity: 0; pointer-events: none; }
+    .ld-logo  { font-size: 44px; }
+    .ld-title { color: #e8d5b0; font-size: 14px; letter-spacing: 6px; font-weight: 700; text-transform: uppercase; }
+    .ld-bar-wrap { width: 220px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+    .ld-bar  { height: 100%; background: #e8d5b0; width: 0%; border-radius: 2px; transition: width .4s; }
+    .ld-msg  { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #666; text-align: center; }
+    .ld-retry { background: #e8d5b0; color: #000; border: none; border-radius: 20px; padding: 10px 28px; font-size: 12px; font-weight: 700; cursor: pointer; display: none; margin-top: 4px; }
 
-  /* ── Bottom hint ── */
-  #hint { position:fixed; bottom:32px; left:50%; transform:translateX(-50%); z-index:100; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.35); font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:9px 20px; border-radius:20px; white-space:nowrap; transition:opacity .5s; pointer-events:none; }
-  #hint.hidden { opacity:0; }
+    /* UI */
+    #back-btn { position: fixed; top: 16px; left: 16px; z-index: 200; background: rgba(0,0,0,.6); color: #e8d5b0; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 14px; border-radius: 20px; text-decoration: none; border: 1px solid rgba(232,213,176,.2); }
+    #hint { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); z-index: 200; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.08); color: rgba(255,255,255,.6); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 9px 20px; border-radius: 20px; white-space: nowrap; pointer-events: none; }
+    #hint.hidden { display: none; }
 
-  /* ── Screenshot flash ── */
-  #flash { position:fixed; inset:0; background:#fff; z-index:500; opacity:0; pointer-events:none; transition:opacity .1s; }
-  #flash.on { opacity:0.7; }
+    /* Screenshot button */
+    #fab { position: fixed; bottom: 32px; right: 20px; z-index: 200; width: 52px; height: 52px; border-radius: 50%; background: rgba(232,213,176,0.15); border: 1px solid rgba(232,213,176,.35); color: #e8d5b0; font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform .15s, background .15s; }
+    #fab:active { transform: scale(.92); background: rgba(232,213,176,.28); }
 
-  /* ── Fab screenshot btn ── */
-  #fab { position:fixed; bottom:32px; right:20px; z-index:200; width:52px; height:52px; border-radius:50%; background:rgba(232,213,176,0.15); border:1px solid rgba(232,213,176,.35); color:#e8d5b0; font-size:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .15s, background .15s; }
-  #fab:active { transform:scale(.92); background:rgba(232,213,176,.28); }
-</style>
+    /* Flash */
+    #flash { position: fixed; inset: 0; background: #fff; z-index: 500; opacity: 0; pointer-events: none; transition: opacity .1s; }
+    #flash.on { opacity: 0.7; }
+  </style>
 </head>
 <body>
 
@@ -45,394 +49,79 @@
   <div class="ld-logo">👟</div>
   <div class="ld-title">Shoe Try-On</div>
   <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-msg"  id="ld-msg">Loading…</div>
+  <div class="ld-msg" id="ld-msg">Starting…</div>
   <button class="ld-retry" id="ld-retry" onclick="location.reload()">↺ Retry</button>
 </div>
 
-<div id="container">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="sk-canvas"></canvas>
-  <canvas id="three-canvas"></canvas>
-</div>
+<canvas id="deepar-canvas"></canvas>
 
 <div id="flash"></div>
-
 <a href="index.html" id="back-btn">← Back</a>
-<div id="foot-badge">👟 Searching…</div>
 <div id="hint">Point camera at your feet</div>
 <div id="fab" onclick="snap()">📸</div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/GLTFLoader.js"></script>
+<!-- DeepAR SDK -->
+<script src="https://cdn.jsdelivr.net/npm/deepar@5.6.6/js/deepar.js"></script>
 
 <script>
-// ─────────────────────────────────────────────
-//  TUNED DEFAULT VALUES — adjust if needed
-// ─────────────────────────────────────────────
-const CFG = {
-  scale:  1.15,   // shoe size multiplier
-  fwd:    18,     // forward offset along foot direction (px)
-  yOff:  -10,     // vertical offset (negative = up)
-  smooth: 0.40,   // tracking smoothness (0=rigid, 1=no update)
-};
-// ─────────────────────────────────────────────
+  // ============================================================
+  //  PASTE YOUR DEEPAR API KEY BELOW
+  // ============================================================
+  const DEEPAR_API_KEY = '0025c1062ae79f4fa9a689f055e27b1a9cf770ed1585b3b2177e34895ccd348a757811214b0eae99';
+  // ============================================================
 
-const S = {
-  pose:null, running:false, shoeReady:false,
-  flip:false, poseType:null,
-  smoothL:null, smoothR:null,
-  noDetect:0,
-};
+  const ldBar  = document.getElementById('ld-bar');
+  const ldMsg  = document.getElementById('ld-msg');
+  const loader = document.getElementById('loader');
+  const hint   = document.getElementById('hint');
 
-const video      = document.getElementById('video');
-const skCanvas   = document.getElementById('sk-canvas');
-const skCtx      = skCanvas.getContext('2d');
-const ldBar      = document.getElementById('ld-bar');
-const ldMsg      = document.getElementById('ld-msg');
-const loader     = document.getElementById('loader');
-const footBadge  = document.getElementById('foot-badge');
-const hint       = document.getElementById('hint');
+  async function boot() {
+    try {
+      ldMsg.textContent = 'Loading DeepAR…';
+      ldBar.style.width = '20%';
 
-// ── THREE.JS setup ───────────────────────────
-const renderer = new THREE.WebGLRenderer({
-  canvas: document.getElementById('three-canvas'),
-  alpha:true, antialias:true, premultipliedAlpha:false
-});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-renderer.setClearColor(0x000000,0);
-
-const scene  = new THREE.Scene();
-const camera = new THREE.OrthographicCamera(0,1,1,0,0.1,2000);
-camera.position.z=500;
-
-scene.add(new THREE.AmbientLight(0xffffff,2.2));
-const dir=new THREE.DirectionalLight(0xffffff,2.5); dir.position.set(0.5,1,1); scene.add(dir);
-const fill=new THREE.DirectionalLight(0xfff0e0,1.0); fill.position.set(-1,.5,.5); scene.add(fill);
-
-function resizeRenderer(){
-  const w=window.innerWidth,h=window.innerHeight;
-  renderer.setSize(w,h); camera.right=w; camera.bottom=h; camera.updateProjectionMatrix();
-}
-resizeRenderer(); window.addEventListener('resize',resizeRenderer);
-
-const groupL=new THREE.Group(); scene.add(groupL); groupL.visible=false;
-const groupR=new THREE.Group(); scene.add(groupR); groupR.visible=false;
-let shoeModelLength=1;
-
-function setupGroup(gltf,group,mirrorX){
-  while(group.children.length) group.remove(group.children[0]);
-  const model=gltf.scene.clone(true);
-  const box=new THREE.Box3().setFromObject(model);
-  const size=box.getSize(new THREE.Vector3());
-  const center=box.getCenter(new THREE.Vector3());
-  if(!mirrorX) shoeModelLength=Math.max(size.x,size.z);
-  model.position.sub(center);
-  if(mirrorX) model.scale.x*=-1;
-  group.add(model);
-}
-
-// ── Load shoe ────────────────────────────────
-function loadShoeGLB(){
-  return new Promise((res,rej)=>{
-    new THREE.GLTFLoader().load('shoe.glb',
-      gltf=>{ setupGroup(gltf,groupL,false); setupGroup(gltf,groupR,true); S.shoeReady=true; res(); },
-      xhr=>{ ldBar.style.width=(10+Math.round(xhr.loaded/(xhr.total||1)*40))+'%'; },
-      rej
-    );
-  });
-}
-
-// ── Script loader ────────────────────────────
-function loadScript(src){
-  return new Promise((res,rej)=>{
-    const t=setTimeout(()=>rej(new Error('timeout')),25000);
-    const s=document.createElement('script');
-    s.src=src;
-    s.onload=()=>{clearTimeout(t);res();};
-    s.onerror=()=>{clearTimeout(t);rej(new Error('failed: '+src));};
-    document.head.appendChild(s);
-  });
-}
-
-// ── MediaPipe init ───────────────────────────
-function initMediaPipe(){
-  return new Promise((res,rej)=>{
-    const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
-    pose.setOptions({ modelComplexity:1, smoothLandmarks:true, minDetectionConfidence:0.55, minTrackingConfidence:0.55 });
-    pose.onResults(onMPResults);
-    // Feed frames manually from already-open video — avoids opening camera twice
-    pose.initialize().then(()=>{
-      S.pose=pose; S.poseType='mediapipe';
-      // Start feeding frames via requestAnimationFrame
-      async function mpLoop(){
-        if(!S.running) return;
-        if(video.readyState>=2){
-          try{ await pose.send({image:video}); }catch(e){ console.warn('MP send err',e); }
+      const deepAR = await deepar.initialize({
+        licenseKey: DEEPAR_API_KEY,
+        canvas: document.getElementById('deepar-canvas'),
+        additionalOptions: {
+          cameraConfig: {
+            facingMode: 'environment', // rear camera for feet
+          }
         }
-        requestAnimationFrame(mpLoop);
-      }
-      mpLoop();
-      res();
-    }).catch(rej);
-  });
-}
-
-// ── TF MoveNet init ──────────────────────────
-async function initMoveNet(){
-  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js');
-  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js');
-  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
-  await tf.ready();
-  S.pose = await poseDetection.createDetector(
-    poseDetection.SupportedModels.MoveNet,
-    { modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING }
-  );
-  S.poseType='movenet';
-}
-
-// ── Camera open ──────────────────────────────
-async function openCamera(){
-  // Stop any existing tracks first to release camera lock
-  if(video.srcObject){
-    video.srcObject.getTracks().forEach(t=>t.stop());
-    video.srcObject=null;
-  }
-  // Small delay to let OS release the camera
-  await new Promise(r=>setTimeout(r,300));
-
-  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-  const constraints = isMobile ? [
-    {video:{facingMode:{exact:'environment'},width:{ideal:640},height:{ideal:480}},audio:false},
-    {video:{facingMode:'environment'},audio:false},
-    {video:{facingMode:{exact:'user'}},audio:false},
-    {video:true,audio:false},
-  ] : [
-    {video:{width:{ideal:1280},height:{ideal:720}},audio:false},
-    {video:true,audio:false},
-  ];
-  for(const c of constraints){
-    try{
-      const s=await navigator.mediaDevices.getUserMedia(c);
-      video.srcObject=s;
-      await video.play();
-      return;
-    }catch(e){ console.warn('cam attempt failed',e.name,e.message); }
-  }
-  throw new Error('Camera could not be opened. Please allow camera access and reload.');
-}
-
-// ── Boot ─────────────────────────────────────
-async function boot(){
-  try{
-    ldMsg.textContent='Opening camera…'; ldBar.style.width='5%';
-    await openCamera();
-
-    ldMsg.textContent='Loading shoe model…'; ldBar.style.width='15%';
-    await loadShoeGLB();
-
-    ldMsg.textContent='Loading pose AI…'; ldBar.style.width='55%';
-
-    let mpOk=false;
-    try{
-      await Promise.race([
-        (async()=>{
-          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
-          await initMediaPipe();
-          mpOk=true;
-        })(),
-        new Promise((_,r)=>setTimeout(()=>r(new Error('MP timeout')),22000))
-      ]);
-    }catch(e){ console.warn('MediaPipe failed, using MoveNet',e); }
-
-    if(!mpOk){
-      ldMsg.textContent='Loading fallback AI…'; ldBar.style.width='70%';
-      await initMoveNet();
-      S.running=true;
-      openVideoAndLoop();
-    } else {
-      S.running=true;
-    }
-
-    ldBar.style.width='100%'; ldMsg.textContent='Ready!';
-    setTimeout(()=>{ loader.classList.add('hidden'); },500);
-    requestAnimationFrame(renderLoop);
-
-  }catch(err){
-    console.error(err);
-    ldMsg.textContent=''; 
-    document.getElementById('ld-msg').style.color='#ff6b6b';
-    ldMsg.textContent='❌ '+err.message;
-    document.getElementById('ld-retry').style.display='block';
-  }
-}
-
-function openVideoAndLoop(){
-  // MoveNet runs in render loop
-}
-
-// ── Smoothing ────────────────────────────────
-function smooth(prev,next,alpha){
-  if(!prev) return {...next};
-  let da=next.angle-prev.angle;
-  if(da>Math.PI)da-=Math.PI*2; if(da<-Math.PI)da+=Math.PI*2;
-  return {
-    sx:prev.sx+alpha*(next.sx-prev.sx),
-    sy:prev.sy+alpha*(next.sy-prev.sy),
-    angle:prev.angle+alpha*da,
-    footPx:prev.footPx+alpha*(next.footPx-prev.footPx),
-    side:next.side,
-  };
-}
-
-// ── MediaPipe results ────────────────────────
-function onMPResults(results){
-  syncCanvasSize();
-  skCtx.clearRect(0,0,skCanvas.width,skCanvas.height);
-  const raw={left:null,right:null};
-
-  if(results.poseLandmarks){
-    const lm=results.poseLandmarks;
-    const sw=window.innerWidth,sh=window.innerHeight;
-    const getF=i=>(lm[i]&&lm[i].visibility>0.15)?lm[i]:null;
-    const getV=i=>(lm[i]&&lm[i].visibility>0.30)?lm[i]:null;
-
-    [
-      {ankle:getF(27),heel:getF(29),toe:getF(31),knee:getV(25),side:'left'},
-      {ankle:getF(28),heel:getF(30),toe:getF(32),knee:getV(26),side:'right'},
-    ].forEach(({ankle,heel,toe,knee,side})=>{
-      if(!ankle&&!(heel&&toe)) return;
-
-      // Anchor point
-      let ax,ay;
-      if(heel&&ankle){ ax=((heel.x+ankle.x)/2)*sw; ay=((heel.y+ankle.y)/2)*sh; }
-      else if(ankle)  { ax=ankle.x*sw; ay=ankle.y*sh; }
-      else            { ax=((heel.x+toe.x)/2)*sw; ay=((heel.y+toe.y)/2)*sh; }
-
-      // Angle
-      let angle=0;
-      if(heel&&toe){
-        const rawA=Math.atan2((toe.y-heel.y)*sh,(toe.x-heel.x)*sw);
-        // Clamp near-vertical angles (foot pointing at camera) → use horizontal default
-        const absA=Math.abs(rawA);
-        angle=(absA>Math.PI*0.35&&absA<Math.PI*0.65)?(side==='left'?0:Math.PI):rawA;
-      } else if(knee&&ankle){
-        angle=Math.atan2((ankle.y-knee.y)*sh,(ankle.x-knee.x)*sw);
-      } else {
-        angle=side==='left'?0:Math.PI;
-      }
-
-      // Foot size
-      let footPx;
-      if(heel&&toe)        footPx=Math.hypot((toe.x-heel.x)*sw,(toe.y-heel.y)*sh)*1.20;
-      else if(knee&&ankle) footPx=Math.hypot((ankle.x-knee.x)*sw,(ankle.y-knee.y)*sh)*0.72;
-      else                 footPx=90+ay/sh*160;
-
-      raw[side]={sx:ax,sy:ay,angle,footPx:Math.max(55,Math.min(footPx,380)),side};
-    });
-  }
-  applyRaw(raw);
-}
-
-// ── MoveNet frame ────────────────────────────
-async function runMoveNet(){
-  if(!S.pose||video.readyState<2) return;
-  try{
-    const poses=await S.pose.estimatePoses(video,{maxPoses:2,flipHorizontal:false,scoreThreshold:0.25});
-    const sw=window.innerWidth,sh=window.innerHeight;
-    const vw=video.videoWidth||sw,vh=video.videoHeight||sh;
-    const raw={left:null,right:null};
-    poses.forEach(pose=>{
-      const kp=pose.keypoints;
-      const get=(i,s=0.2)=>kp[i]?.score>s?kp[i]:null;
-      [{ankle:get(15),knee:get(13),side:'left'},{ankle:get(16),knee:get(14),side:'right'}]
-      .forEach(({ankle,knee,side})=>{
-        if(!ankle) return;
-        const ax=(ankle.x/vw)*sw,ay=(ankle.y/vh)*sh;
-        let angle=side==='left'?0:Math.PI, footPx=90+ay/sh*140;
-        if(knee){ const kx=(knee.x/vw)*sw,ky=(knee.y/vh)*sh; angle=Math.atan2(ay-ky,ax-kx); footPx=Math.hypot(ax-kx,ay-ky)*0.72; }
-        raw[side]={sx:ax,sy:ay,angle,footPx:Math.max(55,Math.min(footPx,380)),side};
       });
-    });
-    applyRaw(raw);
-  }catch(e){console.warn(e);}
-}
 
-function applyRaw(raw){
-  const alpha=CFG.smooth;
-  if(raw.left)  S.smoothL=smooth(S.smoothL,raw.left, alpha);
-  if(raw.right) S.smoothR=smooth(S.smoothR,raw.right,alpha);
-  if(!raw.left  &&S.smoothL) S.smoothL=smooth(S.smoothL,S.smoothL,0.05);
-  if(!raw.right &&S.smoothR) S.smoothR=smooth(S.smoothR,S.smoothR,0.05);
+      ldMsg.textContent = 'Loading shoe effect…';
+      ldBar.style.width = '60%';
 
-  const count=[raw.left,raw.right].filter(Boolean).length;
-  const detected=raw.left||raw.right;
-  footBadge.textContent=`👟 ${count} ${count===1?'foot':'feet'}`;
-  footBadge.className=detected?'on':'';
-  if(detected){ hint.classList.add('hidden'); S.noDetect=0; }
-  else{
-    S.noDetect++;
-    if(S.noDetect>45) hint.classList.remove('hidden');
+      await deepAR.switchEffect('shoe.deepar');
+
+      ldBar.style.width = '100%';
+      ldMsg.textContent = 'Ready!';
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        setTimeout(() => hint.classList.add('hidden'), 4000);
+      }, 500);
+
+    } catch (err) {
+      console.error(err);
+      ldMsg.style.color = '#ff6b6b';
+      ldMsg.textContent = '❌ ' + err.message;
+      document.getElementById('ld-retry').style.display = 'block';
+    }
   }
-}
 
-// ── Render loop ──────────────────────────────
-let lastT=0;
-async function renderLoop(ts){
-  if(!S.running){ requestAnimationFrame(renderLoop); return; }
-  requestAnimationFrame(renderLoop);
-  syncCanvasSize();
+  function snap() {
+    const flash = document.getElementById('flash');
+    flash.classList.add('on');
+    setTimeout(() => flash.classList.remove('on'), 200);
+    const canvas = document.getElementById('deepar-canvas');
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'shoe-tryon-' + Date.now() + '.png';
+    a.click();
+  }
 
-  if(S.poseType==='movenet'&&ts-lastT>60){ lastT=ts; await runMoveNet(); }
-
-  updateShoes();
-  renderer.render(scene,camera);
-}
-
-function syncCanvasSize(){
-  const vw=video.videoWidth||window.innerWidth,vh=video.videoHeight||window.innerHeight;
-  if(skCanvas.width!==vw){skCanvas.width=vw;skCanvas.height=vh;}
-}
-
-// ── Shoe placement ───────────────────────────
-function updateShoes(){
-  if(!S.shoeReady) return;
-  [{group:groupL,data:S.smoothL,isLeft:true},{group:groupR,data:S.smoothR,isLeft:false}]
-  .forEach(({group,data,isLeft})=>{
-    if(!data){group.visible=false;return;}
-    group.visible=true;
-    const angle=data.angle;
-    const dx=Math.cos(angle),dy=Math.sin(angle);
-    const sc=(data.footPx/shoeModelLength)*CFG.scale;
-    const halfShoe=shoeModelLength*sc*0.5;
-    group.position.set(
-      data.sx+dx*(CFG.fwd+halfShoe),
-      data.sy+dy*(CFG.fwd+halfShoe)+CFG.yOff,
-      0
-    );
-    group.scale.set(sc*(isLeft?-1:1),sc,sc);
-    group.rotation.z=-angle;
-  });
-}
-
-// ── Screenshot ───────────────────────────────
-function snap(){
-  const flash=document.getElementById('flash');
-  flash.classList.add('on');
-  setTimeout(()=>flash.classList.remove('on'),200);
-
-  // Merge video + 3D canvas into one image
-  const out=document.createElement('canvas');
-  out.width=window.innerWidth; out.height=window.innerHeight;
-  const ctx=out.getContext('2d');
-  ctx.drawImage(video,0,0,out.width,out.height);
-  ctx.drawImage(document.getElementById('three-canvas'),0,0,out.width,out.height);
-  const a=document.createElement('a');
-  a.href=out.toDataURL('image/png');
-  a.download='shoe-tryon-'+Date.now()+'.png';
-  a.click();
-}
-
-boot();
+  boot();
 </script>
 </body>
 </html>
