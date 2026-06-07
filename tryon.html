@@ -62,8 +62,8 @@
 <div id="hint">Point camera at your feet</div>
 <div id="fab" onclick="snap()">📸</div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.154.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
 // ─────────────────────────────────────────────
@@ -182,9 +182,13 @@ async function initMoveNet(){
 
 // ── Camera open ──────────────────────────────
 async function openCamera(){
-  const constraints=[
+  const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const constraints = isMobile ? [
     {video:{facingMode:{exact:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},
     {video:{facingMode:'environment'},audio:false},
+    {video:true,audio:false},
+  ] : [
+    {video:{width:{ideal:1280},height:{ideal:720}},audio:false},
     {video:true,audio:false},
   ];
   for(const c of constraints){
