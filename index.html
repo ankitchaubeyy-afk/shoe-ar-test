@@ -34,19 +34,14 @@
     body.env-arctic model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f2d 0%, #071318 60%, #0c0c0e 100%); }
     body.env-forest model-viewer { background: radial-gradient(ellipse at 50% 30%, #0d1f0e 0%, #071008 60%, #0c0c0e 100%); }
 
-    /* Hide model-viewer's hard shadow rectangle plane */
     model-viewer::part(default-progress-bar) { display: none; }
     model-viewer canvas { display: block; }
 
-    /* The ground shadow rectangle comes from model-viewer's internal Three.js
-       PlaneGeometry. We set shadow-intensity="0" to kill it, then supply our own. */
-
-    /* Soft ground shadow overlay — hides the hard rectangle plane */
+    /* ── DYNAMIC SHADOW ─────────────────────────────────────────── */
     .shadow-overlay {
       position: fixed;
       left: 50%;
-      transform: translateX(-50%);
-      /* vertically centered around the shoe's resting point */
+      /* JS will update translateX(-50%) + dynamic offset */
       bottom: 200px;
       width: 340px;
       height: 80px;
@@ -59,9 +54,13 @@
       pointer-events: none;
       z-index: 10;
       filter: blur(8px);
+      /* smooth transition so shadow doesn't snap */
+      transition: transform 0.12s ease-out, bottom 0.12s ease-out, width 0.12s ease-out, opacity 0.3s;
+      transform: translateX(-50%) scaleX(1) scaleY(1);
+      transform-origin: center bottom;
     }
 
-    /* LOADER */
+    /* ── LOADER ─────────────────────────────────────────────────── */
     #loader {
       position: fixed; inset: 0;
       background: var(--bg); z-index: 9999;
@@ -74,11 +73,68 @@
     .loader-bar { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
     .loader-text { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
 
-    /* BOTTOM */
+    /* ── SHOE SELECTOR (top strip) ──────────────────────────────── */
+    #shoe-selector {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      display: flex; gap: 10px; align-items: center;
+      padding: 12px 16px 10px;
+      background: linear-gradient(to bottom, rgba(12,12,14,0.95) 70%, transparent);
+      overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    #shoe-selector::-webkit-scrollbar { display: none; }
+
+    .shoe-card {
+      flex: 0 0 auto;
+      width: 68px;
+      background: var(--pill);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 6px;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s, background 0.2s;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .shoe-card.active {
+      border-color: var(--accent);
+      background: rgba(232,213,176,0.08);
+      transform: scale(1.05);
+    }
+    .shoe-card .thumb {
+      width: 100%; aspect-ratio: 1;
+      border-radius: 9px;
+      background: rgba(255,255,255,0.04);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      margin-bottom: 4px;
+      overflow: hidden;
+    }
+    .shoe-card .thumb img {
+      width: 100%; height: 100%; object-fit: cover; border-radius: 9px;
+    }
+    .shoe-card .shoe-name {
+      font-size: 8px; letter-spacing: 0.5px; text-transform: uppercase;
+      color: var(--muted); line-height: 1.2;
+    }
+    .shoe-card.active .shoe-name { color: var(--accent); }
+
+    /* ── BOTTOM ─────────────────────────────────────────────────── */
     .bottom {
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
       background: linear-gradient(to top, rgba(12,12,14,1) 55%, transparent);
       padding: 10px 20px 36px;
+    }
+
+    .shoe-title-row {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    #shoe-display-name {
+      font-size: 16px; font-weight: 800; letter-spacing: 0.5px;
+      transition: opacity 0.2s;
+    }
+    #shoe-display-brand {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
     }
 
     .tabs { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
@@ -112,7 +168,6 @@
     }
     .env-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
 
-    /* ACTION ROW */
     .action-row { display: flex; gap: 10px; margin-top: 12px; }
 
     #ar-btn {
@@ -157,6 +212,11 @@
 
   <div id="toast"></div>
 
+  <!-- ── SHOE SELECTOR ───────────────────────────────────────── -->
+  <div id="shoe-selector">
+    <!-- Cards injected by JS from SHOE_CATALOG -->
+  </div>
+
   <model-viewer id="viewer" src="shoe.glb" ar ar-modes="webxr scene-viewer quick-look"
     ar-scale="auto" ar-placement="floor" camera-controls auto-rotate auto-rotate-delay="1000"
     rotation-per-second="15deg" shadow-intensity="0" shadow-softness="1" exposure="0.8"
@@ -165,12 +225,17 @@
     alt="Shoe">
   </model-viewer>
 
-  <!-- Soft blended shadow beneath shoe — replaces the harsh flat rectangle -->
-  <div class="shadow-overlay"></div>
+  <!-- Dynamic shadow div — JS moves this in sync with camera -->
+  <div class="shadow-overlay" id="shadow"></div>
 
   <div class="hint">Drag to rotate · Pinch to zoom</div>
 
   <div class="bottom">
+    <div class="shoe-title-row">
+      <span id="shoe-display-name">Nike Quest 16</span>
+      <span id="shoe-display-brand">Nike</span>
+    </div>
+
     <div class="tabs">
       <button class="tab active" data-tab="colors">Colors</button>
       <button class="tab" data-tab="sizes">Sizes</button>
@@ -218,28 +283,217 @@
   </div>
 
   <script>
-    const viewer = document.getElementById('viewer');
-    const loaderBar = document.getElementById('loader-bar');
-    const loader = document.getElementById('loader');
+    /* ═══════════════════════════════════════════════════════════
+       SHOE CATALOG — add new shoes here, that's it!
+       
+       Fields:
+         id       : unique string key
+         name     : display name shown at bottom
+         brand    : brand label
+         src      : path to .glb file
+         thumb    : path to thumbnail image OR emoji fallback
+         colors   : array of {hex, label} — leave empty [] to keep defaults
+         sizes    : array of size strings, prefix with '!' to mark sold-out
+                    e.g. ['!UK 5', 'UK 6', 'UK 7']
+    ═══════════════════════════════════════════════════════════ */
+    const SHOE_CATALOG = [
+      {
+        id: 'quest16',
+        name: 'Quest 16',
+        brand: 'Nike',
+        src: 'shoe.glb',
+        thumb: '👟',   // replace with 'thumb-quest16.jpg' once you have images
+        colors: [
+          { hex: '#d4b8a8', label: 'Rose' },
+          { hex: '#1a1a2e', label: 'Navy' },
+          { hex: '#2d4a1e', label: 'Forest' },
+          { hex: '#8b1a1a', label: 'Crimson' },
+          { hex: '#e8e8e0', label: 'White' },
+        ],
+        sizes: ['!UK 5','UK 6','UK 7','UK 8','UK 9','UK 10','!UK 11'],
+      },
 
+      /* ── ADD MORE SHOES BELOW THIS LINE ──────────────────────
+         Just copy the block above and change the values.
+         Example:
+
+      {
+        id: 'airmax90',
+        name: 'Air Max 90',
+        brand: 'Nike',
+        src: 'airmax90.glb',
+        thumb: 'thumbs/airmax90.jpg',
+        colors: [
+          { hex: '#f5f5f5', label: 'White' },
+          { hex: '#111', label: 'Black' },
+        ],
+        sizes: ['UK 6','UK 7','UK 8','UK 9','UK 10'],
+      },
+
+      {
+        id: 'ultraboost',
+        name: 'Ultraboost 24',
+        brand: 'Adidas',
+        src: 'ultraboost.glb',
+        thumb: 'thumbs/ultraboost.jpg',
+        colors: [{ hex: '#000', label: 'Core Black' }],
+        sizes: ['UK 7','UK 8','UK 9','!UK 10'],
+      },
+      ─────────────────────────────────────────────────────── */
+    ];
+
+    /* ─────────────── INTERNALS — no need to edit below ─────── */
+    const viewer     = document.getElementById('viewer');
+    const loaderBar  = document.getElementById('loader-bar');
+    const loader     = document.getElementById('loader');
+    const shadow     = document.getElementById('shadow');
+    const selectorEl = document.getElementById('shoe-selector');
+
+    let currentShoeId = SHOE_CATALOG[0].id;
+
+    /* ── Build shoe selector cards ── */
+    function buildSelector() {
+      selectorEl.innerHTML = '';
+      SHOE_CATALOG.forEach(shoe => {
+        const card = document.createElement('div');
+        card.className = 'shoe-card' + (shoe.id === currentShoeId ? ' active' : '');
+        card.dataset.id = shoe.id;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        if (shoe.thumb && !shoe.thumb.startsWith('http') && shoe.thumb.match(/\.(jpg|jpeg|png|webp)/i)) {
+          const img = document.createElement('img');
+          img.src = shoe.thumb; img.alt = shoe.name;
+          thumb.appendChild(img);
+        } else {
+          thumb.textContent = shoe.thumb || '👟';
+        }
+
+        const label = document.createElement('div');
+        label.className = 'shoe-name';
+        label.textContent = shoe.name;
+
+        card.appendChild(thumb);
+        card.appendChild(label);
+        card.addEventListener('click', () => selectShoe(shoe.id));
+        selectorEl.appendChild(card);
+      });
+    }
+
+    /* ── Switch shoe ── */
+    function selectShoe(id) {
+      const shoe = SHOE_CATALOG.find(s => s.id === id);
+      if (!shoe || id === currentShoeId) return;
+      currentShoeId = id;
+
+      // Update active card
+      document.querySelectorAll('.shoe-card').forEach(c =>
+        c.classList.toggle('active', c.dataset.id === id));
+
+      // Fade name
+      const nameEl = document.getElementById('shoe-display-name');
+      const brandEl = document.getElementById('shoe-display-brand');
+      nameEl.style.opacity = '0';
+      setTimeout(() => {
+        nameEl.textContent = shoe.name;
+        brandEl.textContent = shoe.brand;
+        nameEl.style.opacity = '1';
+      }, 150);
+
+      // Swap model
+      viewer.src = shoe.src;
+
+      // Rebuild colors panel
+      const colorsPanel = document.getElementById('tab-colors');
+      if (shoe.colors && shoe.colors.length) {
+        colorsPanel.innerHTML = '';
+        shoe.colors.forEach((c, i) => {
+          const sw = document.createElement('div');
+          sw.className = 'swatch' + (i === 0 ? ' active' : '');
+          sw.style.background = c.hex;
+          sw.dataset.label = c.label;
+          sw.onclick = function() { selectSwatch(this); };
+          colorsPanel.appendChild(sw);
+        });
+      }
+
+      // Rebuild sizes panel
+      const sizesPanel = document.getElementById('tab-sizes');
+      if (shoe.sizes && shoe.sizes.length) {
+        sizesPanel.innerHTML = '';
+        shoe.sizes.forEach((s, i) => {
+          const soldOut = s.startsWith('!');
+          const label = soldOut ? s.slice(1) : s;
+          const btn = document.createElement('button');
+          btn.className = 'size-btn' + (soldOut ? ' sold-out' : '') + (i === 3 && !soldOut ? ' active' : '');
+          btn.textContent = label;
+          if (!soldOut) btn.onclick = function() { selectSize(this); };
+          sizesPanel.appendChild(btn);
+        });
+      }
+
+      showToast(shoe.name);
+    }
+
+    /* ── Loader animation ── */
     let prog = 0;
-    const t = setInterval(() => {
+    const ti = setInterval(() => {
       prog += Math.random() * 20;
-      if (prog > 90) { prog = 90; clearInterval(t); }
+      if (prog > 90) { prog = 90; clearInterval(ti); }
       loaderBar.style.width = prog + '%';
     }, 200);
 
     viewer.addEventListener('load', () => {
-      clearInterval(t); loaderBar.style.width = '100%';
+      clearInterval(ti);
+      loaderBar.style.width = '100%';
       setTimeout(() => loader.classList.add('hidden'), 400);
-
-      // Remove the internal ground plane mesh that causes the rectangle
-      const scene = viewer[Object.getOwnPropertySymbols(viewer)
-        .find(s => s.toString().includes('scene') || s.description?.includes('scene'))];
-      // Fallback: hide via CSS custom property trick
       viewer.style.setProperty('--ground-shadow', 'none');
+      startShadowTracking();
     });
 
+    /* ── Dynamic shadow ─────────────────────────────────────────
+       Strategy: read camera orbit angles from model-viewer and
+       shift / squish the shadow to simulate a real cast shadow.
+       
+       - Theta (horizontal orbit) → shifts shadow left/right
+       - Phi (vertical orbit / tilt) → scales shadow narrow when
+         camera is overhead, wide when camera is at shoe level
+       - When user drags, shadow transitions smoothly (CSS ease)
+    ─────────────────────────────────────────────────────────── */
+    function startShadowTracking() {
+      function updateShadow() {
+        try {
+          const orbit = viewer.getCameraOrbit();
+          // orbit.theta = horizontal angle (radians), orbit.phi = vertical (radians)
+          const theta = orbit.theta; // rotation around Y axis
+          const phi   = orbit.phi;  // 0 = overhead, π/2 = eye-level
+
+          // Horizontal offset: shoe shadow shifts opposite to camera position
+          // At full rotation the shadow shifts ±30px
+          const offsetX = Math.sin(theta) * -28;
+
+          // Vertical scale: when camera is overhead (phi ≈ 0) shadow is round (scaleX wide)
+          // When camera is at eye level (phi ≈ π/2) shadow is narrow
+          const tiltFactor = Math.sin(phi); // 0 at overhead → 1 at eye-level
+          const scaleX = 0.6 + tiltFactor * 0.5;   // 0.6 → 1.1
+          const scaleY = 0.8 + tiltFactor * 0.3;   // 0.8 → 1.1
+          const opacity = 0.5 + tiltFactor * 0.35; // darker when more side-on
+
+          shadow.style.transform = `translateX(calc(-50% + ${offsetX.toFixed(1)}px)) scaleX(${scaleX.toFixed(3)}) scaleY(${scaleY.toFixed(3)})`;
+          shadow.style.opacity = opacity.toFixed(3);
+        } catch(e) {
+          // model-viewer not ready yet
+        }
+      }
+
+      // Update on every camera-change event (fires during drag & auto-rotate)
+      viewer.addEventListener('camera-change', updateShadow);
+      // Also tick for auto-rotate when no drag event fires
+      setInterval(updateShadow, 50);
+      updateShadow();
+    }
+
+    /* ── Tabs ── */
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -258,6 +512,7 @@
       document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
       el.classList.add('active'); showToast(el.textContent);
     }
+
     const hdrs = {
       neutral: 'https://modelviewer.dev/shared-assets/environments/neutral.hdr',
       legacy:  'https://modelviewer.dev/shared-assets/environments/legacy.hdr',
@@ -268,11 +523,19 @@
       el.classList.add('active'); document.body.className = cls;
       viewer.environmentImage = hdrs[hdr]; showToast(el.textContent);
     }
+
     function showToast(msg) {
       const t = document.getElementById('toast');
       t.textContent = msg; t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 1600);
     }
+
+    /* ── Init ── */
+    buildSelector();
+    // Set initial name from first shoe
+    const first = SHOE_CATALOG[0];
+    document.getElementById('shoe-display-name').textContent = first.name;
+    document.getElementById('shoe-display-brand').textContent = first.brand;
   </script>
 </body>
 </html>
