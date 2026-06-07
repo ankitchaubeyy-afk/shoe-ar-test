@@ -4,469 +4,409 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Shoe Try-On</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: #000;
-    font-family: 'Segoe UI', sans-serif;
-    overflow: hidden;
-    height: 100dvh;
-    touch-action: none;
-  }
-
-  #ar-container {
-    position: relative;
-    width: 100vw;
-    height: 100dvh;
-  }
-
-  /* DeepAR renders into this canvas */
-  #deepar-canvas {
-    position: absolute;
-    inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover;
-  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#000; font-family:'Segoe UI',sans-serif; overflow:hidden; height:100dvh; touch-action:none; }
+  #container { position:relative; width:100vw; height:100dvh; }
+  #video        { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1; }
+  #sk-canvas    { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+  #three-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:3; background:transparent !important; }
 
   /* ── Loader ── */
-  #loader {
-    position: fixed;
-    inset: 0;
-    background: #0a0a0a;
-    z-index: 999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    transition: opacity 0.5s;
-  }
-  #loader.hidden { opacity: 0; pointer-events: none; }
-
-  .ld-logo {
-    font-size: 40px;
-    margin-bottom: 4px;
-  }
-  .ld-title {
-    color: #e8d5b0;
-    font-size: 15px;
-    letter-spacing: 5px;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  .ld-bar-wrap {
-    width: 200px;
-    height: 2px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .ld-bar {
-    height: 100%;
-    background: #e8d5b0;
-    width: 0%;
-    border-radius: 2px;
-    transition: width 0.4s ease;
-  }
-  .ld-msg {
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #444;
-    text-align: center;
-    max-width: 260px;
-    line-height: 1.8;
-  }
-  .ld-error {
-    color: #ff6b6b;
-    font-size: 12px;
-    text-align: center;
-    max-width: 300px;
-    line-height: 1.7;
-    display: none;
-  }
-  .ld-retry {
-    background: #e8d5b0;
-    color: #000;
-    border: none;
-    border-radius: 20px;
-    padding: 10px 28px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    cursor: pointer;
-    display: none;
-    margin-top: 4px;
-  }
+  #loader { position:fixed; inset:0; background:#0a0a0a; z-index:999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; transition:opacity .5s; }
+  #loader.hidden { opacity:0; pointer-events:none; }
+  .ld-logo  { font-size:44px; }
+  .ld-title { color:#e8d5b0; font-size:14px; letter-spacing:6px; font-weight:700; text-transform:uppercase; }
+  .ld-bar-wrap { width:220px; height:2px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+  .ld-bar  { height:100%; background:#e8d5b0; width:0%; border-radius:2px; transition:width .35s; }
+  .ld-msg  { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#444; text-align:center; }
+  .ld-retry { background:#e8d5b0; color:#000; border:none; border-radius:20px; padding:10px 28px; font-size:12px; font-weight:700; cursor:pointer; display:none; margin-top:4px; }
 
   /* ── Top bar ── */
-  #top-bar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
-    pointer-events: none;
-  }
-
-  #back-btn {
-    pointer-events: all;
-    background: rgba(0,0,0,0.55);
-    color: #e8d5b0;
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 7px 14px;
-    border-radius: 20px;
-    text-decoration: none;
-    border: 1px solid rgba(232,213,176,0.2);
-  }
-
-  #status-pill {
-    background: rgba(0,0,0,0.55);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #555;
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 7px 12px;
-    border-radius: 20px;
-    transition: all 0.3s;
-  }
-  #status-pill.on  { color: #4fffb0; border-color: rgba(79,255,176,0.3); }
-  #status-pill.off { color: #ff6b6b; border-color: rgba(255,107,107,0.3); }
-  #status-pill.warn{ color: #ffcc44; border-color: rgba(255,204,68,0.3); }
+  #back-btn   { position:fixed; top:16px; left:16px; z-index:200; background:rgba(0,0,0,.6); color:#e8d5b0; font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:8px 14px; border-radius:20px; text-decoration:none; border:1px solid rgba(232,213,176,.2); }
+  #foot-badge { position:fixed; top:16px; right:16px; z-index:200; background:rgba(0,0,0,.6); color:#555; font-size:10px; letter-spacing:2px; padding:8px 12px; border-radius:20px; transition:color .3s; }
+  #foot-badge.on { color:#4fffb0; }
 
   /* ── Bottom hint ── */
-  #hint {
-    position: fixed;
-    bottom: 36px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 100;
-    background: rgba(0,0,0,0.55);
-    border: 1px solid rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.4);
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    padding: 8px 18px;
-    border-radius: 20px;
-    white-space: nowrap;
-    transition: opacity 0.5s;
-  }
-  #hint.hidden { opacity: 0; pointer-events: none; }
+  #hint { position:fixed; bottom:32px; left:50%; transform:translateX(-50%); z-index:100; background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.35); font-size:10px; letter-spacing:2px; text-transform:uppercase; padding:9px 20px; border-radius:20px; white-space:nowrap; transition:opacity .5s; pointer-events:none; }
+  #hint.hidden { opacity:0; }
 
-  /* ── Effect-not-loaded notice ── */
-  #effect-notice {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 90;
-    text-align: center;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.4s;
-  }
-  #effect-notice.show { opacity: 1; }
-  .en-icon  { font-size: 52px; margin-bottom: 10px; }
-  .en-text  {
-    color: rgba(255,255,255,0.35);
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    line-height: 2;
-  }
+  /* ── Screenshot flash ── */
+  #flash { position:fixed; inset:0; background:#fff; z-index:500; opacity:0; pointer-events:none; transition:opacity .1s; }
+  #flash.on { opacity:0.7; }
+
+  /* ── Fab screenshot btn ── */
+  #fab { position:fixed; bottom:32px; right:20px; z-index:200; width:52px; height:52px; border-radius:50%; background:rgba(232,213,176,0.15); border:1px solid rgba(232,213,176,.35); color:#e8d5b0; font-size:22px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .15s, background .15s; }
+  #fab:active { transform:scale(.92); background:rgba(232,213,176,.28); }
 </style>
 </head>
 <body>
 
-<!-- Loader -->
 <div id="loader">
   <div class="ld-logo">👟</div>
   <div class="ld-title">Shoe Try-On</div>
   <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
-  <div class="ld-msg" id="ld-msg">Initialising…</div>
-  <div class="ld-error" id="ld-error"></div>
+  <div class="ld-msg"  id="ld-msg">Loading…</div>
   <button class="ld-retry" id="ld-retry" onclick="location.reload()">↺ Retry</button>
 </div>
 
-<!-- AR -->
-<div id="ar-container">
-  <canvas id="deepar-canvas"></canvas>
-
-  <div id="effect-notice">
-    <div class="en-icon">🦶</div>
-    <div class="en-text">No effect loaded<br>Add your .deepar file to see the shoe</div>
-  </div>
+<div id="container">
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="sk-canvas"></canvas>
+  <canvas id="three-canvas"></canvas>
 </div>
 
-<!-- Top bar -->
-<div id="top-bar">
-  <a href="index.html" id="back-btn">← AR</a>
-  <div id="status-pill" class="warn">Starting…</div>
-</div>
+<div id="flash"></div>
 
-<!-- Bottom hint -->
-<div id="hint" class="hidden">Point camera at your feet</div>
+<a href="index.html" id="back-btn">← Back</a>
+<div id="foot-badge">👟 Searching…</div>
+<div id="hint">Point camera at your feet</div>
+<div id="fab" onclick="snap()">📸</div>
 
-<!--
-  ═══════════════════════════════════════════════════
-  DeepAR Web SDK
-  Replace YOUR_DEEPAR_KEY with your real licence key.
-  SDK docs: https://docs.deepar.ai/deepar-sdk/web
-  ═══════════════════════════════════════════════════
--->
-<script src="https://cdn.jsdelivr.net/npm/deepar/js/deepar.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 
 <script>
-// ─────────────────────────────────────────────────────────────
-//  CONFIG — edit these to match your setup
-// ─────────────────────────────────────────────────────────────
-const CONFIG = {
-  licenceKey:  '0025c1062ae79f4fa9a689f055e27b1a9cf770ed1585b3b2177e34895ccd348a757811214b0eae99',   // ← paste your DeepAR licence key here
-
-  // Path to your .deepar effect file for shoe try-on.
-  // Instructions to create one (free):
-  //   1. Go to https://effects.deepar.ai
-  //   2. Create a new project → choose "Body Tracking"
-  //   3. Import shoe.glb → attach to Left Foot + Right Foot bones
-  //   4. Export → save the .deepar file next to this HTML
-  //   5. Replace the path below with your filename, e.g. 'shoe_effect.deepar'
-  effectPath:  'shoe.deepar',       // Generated DeepAR shoe try-on effect
-
-  // Your shoe GLB — used as a fallback Three.js preview when no effect is loaded
-  // (DeepAR handles the real tracking; this is just so you can see something)
-  modelPath:   'shoe.glb',
-
-  // Camera
-  facingMode:  'environment',       // 'environment' = rear cam, 'user' = front cam
+// ─────────────────────────────────────────────
+//  TUNED DEFAULT VALUES — adjust if needed
+// ─────────────────────────────────────────────
+const CFG = {
+  scale:  1.15,   // shoe size multiplier
+  fwd:    18,     // forward offset along foot direction (px)
+  yOff:  -10,     // vertical offset (negative = up)
+  smooth: 0.40,   // tracking smoothness (0=rigid, 1=no update)
 };
-// ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────
 
-const ldBar       = document.getElementById('ld-bar');
-const ldMsg       = document.getElementById('ld-msg');
-const ldError     = document.getElementById('ld-error');
-const ldRetry     = document.getElementById('ld-retry');
-const loader      = document.getElementById('loader');
-const statusPill  = document.getElementById('status-pill');
-const hint        = document.getElementById('hint');
-const effectNote  = document.getElementById('effect-notice');
+const S = {
+  pose:null, running:false, shoeReady:false,
+  flip:false, poseType:null,
+  smoothL:null, smoothR:null,
+  noDetect:0,
+};
 
-function setProgress(pct, msg) {
-  ldBar.style.width = pct + '%';
-  if (msg) ldMsg.textContent = msg;
+const video      = document.getElementById('video');
+const skCanvas   = document.getElementById('sk-canvas');
+const skCtx      = skCanvas.getContext('2d');
+const ldBar      = document.getElementById('ld-bar');
+const ldMsg      = document.getElementById('ld-msg');
+const loader     = document.getElementById('loader');
+const footBadge  = document.getElementById('foot-badge');
+const hint       = document.getElementById('hint');
+
+// ── THREE.JS setup ───────────────────────────
+const renderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById('three-canvas'),
+  alpha:true, antialias:true, premultipliedAlpha:false
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setClearColor(0x000000,0);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(0,1,1,0,0.1,2000);
+camera.position.z=500;
+
+scene.add(new THREE.AmbientLight(0xffffff,2.2));
+const dir=new THREE.DirectionalLight(0xffffff,2.5); dir.position.set(0.5,1,1); scene.add(dir);
+const fill=new THREE.DirectionalLight(0xfff0e0,1.0); fill.position.set(-1,.5,.5); scene.add(fill);
+
+function resizeRenderer(){
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h); camera.right=w; camera.bottom=h; camera.updateProjectionMatrix();
+}
+resizeRenderer(); window.addEventListener('resize',resizeRenderer);
+
+const groupL=new THREE.Group(); scene.add(groupL); groupL.visible=false;
+const groupR=new THREE.Group(); scene.add(groupR); groupR.visible=false;
+let shoeModelLength=1;
+
+function setupGroup(gltf,group,mirrorX){
+  while(group.children.length) group.remove(group.children[0]);
+  const model=gltf.scene.clone(true);
+  const box=new THREE.Box3().setFromObject(model);
+  const size=box.getSize(new THREE.Vector3());
+  const center=box.getCenter(new THREE.Vector3());
+  if(!mirrorX) shoeModelLength=Math.max(size.x,size.z);
+  model.position.sub(center);
+  if(mirrorX) model.scale.x*=-1;
+  group.add(model);
 }
 
-function showError(msg) {
-  ldError.textContent = msg;
-  ldError.style.display = 'block';
-  ldRetry.style.display = 'block';
-  ldMsg.style.display = 'none';
-  ldBar.style.width = '100%';
-  ldBar.style.background = '#ff6b6b';
+// ── Load shoe ────────────────────────────────
+function loadShoeGLB(){
+  return new Promise((res,rej)=>{
+    new THREE.GLTFLoader().load('shoe.glb',
+      gltf=>{ setupGroup(gltf,groupL,false); setupGroup(gltf,groupR,true); S.shoeReady=true; res(); },
+      xhr=>{ ldBar.style.width=(10+Math.round(xhr.loaded/(xhr.total||1)*40))+'%'; },
+      rej
+    );
+  });
 }
 
-function setStatus(text, cls) {
-  statusPill.textContent = text;
-  statusPill.className = cls || '';
+// ── Script loader ────────────────────────────
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const t=setTimeout(()=>rej(new Error('timeout')),25000);
+    const s=document.createElement('script');
+    s.src=src;
+    s.onload=()=>{clearTimeout(t);res();};
+    s.onerror=()=>{clearTimeout(t);rej(new Error('failed: '+src));};
+    document.head.appendChild(s);
+  });
 }
 
-function errorText(err) {
-  if (!err) return 'Unknown error';
-  return err.message || err.name || String(err);
+// ── MediaPipe init ───────────────────────────
+function initMediaPipe(){
+  return new Promise((res,rej)=>{
+    const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+    pose.setOptions({ modelComplexity:1, smoothLandmarks:true, minDetectionConfidence:0.55, minTrackingConfidence:0.55 });
+    pose.onResults(onMPResults);
+    const cam=new Camera(video,{onFrame:async()=>{
+      if(S.running) await pose.send({image:video});
+    }, width:640, height:480});
+    cam.start().then(()=>{S.pose=pose;S.poseType='mediapipe';res();}).catch(rej);
+  });
 }
 
-async function checkEffectFile(path) {
-  const res = await fetch(path + '?v=' + Date.now(), { cache: 'no-store' });
-  if (!res.ok) throw new Error(path + ' not found. HTTP ' + res.status);
+// ── TF MoveNet init ──────────────────────────
+async function initMoveNet(){
+  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.10.0/dist/tf-core.min.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.10.0/dist/tf-backend-webgl.min.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js');
+  await tf.ready();
+  S.pose = await poseDetection.createDetector(
+    poseDetection.SupportedModels.MoveNet,
+    { modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING }
+  );
+  S.poseType='movenet';
 }
 
-function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(label + ' timeout')), ms))
-  ]);
+// ── Camera open ──────────────────────────────
+async function openCamera(){
+  const constraints=[
+    {video:{facingMode:{exact:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},
+    {video:{facingMode:'environment'},audio:false},
+    {video:true,audio:false},
+  ];
+  for(const c of constraints){
+    try{ const s=await navigator.mediaDevices.getUserMedia(c); video.srcObject=s; await video.play(); return; }
+    catch(e){ console.warn('cam attempt failed',e.name); }
+  }
+  throw new Error('Camera could not be opened. Please allow camera access and reload.');
 }
 
-async function init() {
-  try {
-    // ── 1. Init DeepAR ────────────────────────────────────────
-    // Do NOT pre-open/stop the camera here. On some Android phones it locks
-    // the camera and DeepAR then throws: "Could not start video source".
-    // Let DeepAR request and manage the camera directly.
-    const canvas = document.getElementById('deepar-canvas');
+// ── Boot ─────────────────────────────────────
+async function boot(){
+  try{
+    ldMsg.textContent='Opening camera…'; ldBar.style.width='5%';
+    await openCamera();
 
-    // Resize canvas to window
-    function resizeCanvas() {
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    ldMsg.textContent='Loading shoe model…'; ldBar.style.width='15%';
+    await loadShoeGLB();
 
-    // ── Request camera FIRST to avoid "Could not start video source" ──
-    setProgress(15, 'Requesting camera…');
-    let stream = null;
+    ldMsg.textContent='Loading pose AI…'; ldBar.style.width='55%';
 
-    // Try exact facingMode first, then fallback to any camera, then bare true
-    const camConstraints = [
-      { video: { facingMode: { exact: CONFIG.facingMode } }, audio: false },
-      { video: { facingMode: { ideal: CONFIG.facingMode } }, audio: false },
-      { video: true, audio: false },
-    ];
+    let mpOk=false;
+    try{
+      await Promise.race([
+        (async()=>{
+          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
+          await initMediaPipe();
+          mpOk=true;
+        })(),
+        new Promise((_,r)=>setTimeout(()=>r(new Error('MP timeout')),22000))
+      ]);
+    }catch(e){ console.warn('MediaPipe failed, using MoveNet',e); }
 
-    for (const constraint of camConstraints) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(constraint);
-        console.log('Camera opened with:', JSON.stringify(constraint));
-        break;
-      } catch (e) {
-        console.warn('Camera attempt failed:', e.name, e.message);
-      }
-    }
-
-    if (!stream) {
-      throw new Error(
-        'Camera could not be opened.\n\n' +
-        'Please:\n' +
-        '1. Go to Chrome Settings → Site Settings → Camera\n' +
-        '2. Find ankitchaubeyy-afk.github.io and tap Reset\n' +
-        '3. Reload this page and tap Allow'
-      );
-    }
-
-    setProgress(30, 'Starting DeepAR…');
-
-    // Feed the stream into a hidden video element
-    // then pass that video to DeepAR — avoids double camera-open bug on Android
-    const video = document.createElement('video');
-    video.srcObject = stream;
-    video.setAttribute('playsinline', '');
-    video.muted = true;
-    video.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;';
-    document.body.appendChild(video);
-    await video.play().catch(() => {});
-
-    const deepAR = await deepar.initialize({
-      licenceKey:   CONFIG.licenceKey,
-      canvas:       canvas,
-      videoElement: video,
-    });
-
-    setProgress(70, 'Loading effect…');
-
-    // ── 2. Load shoe effect ───────────────────────────────────
-    if (CONFIG.effectPath) {
-      try {
-        setProgress(75, 'Checking shoe effect…');
-        await checkEffectFile(CONFIG.effectPath);
-        setProgress(85, 'Loading shoe effect…');
-        await withTimeout(deepAR.switchEffect(CONFIG.effectPath), 45000, 'Effect loading');
-        setStatus('Tracking feet', 'on');
-        effectNote.classList.remove('show');
-
-        // Listen for body tracking events if available
-        if (typeof deepAR.on === 'function') {
-          deepAR.on('bodyTrackingStarted', () => {
-            setStatus('Feet detected ✓', 'on');
-            hint.classList.add('hidden');
-          });
-          deepAR.on('bodyTrackingStopped', () => {
-            setStatus('Point at feet', 'warn');
-            hint.classList.remove('hidden');
-          });
-        }
-
-      } catch (e) {
-        console.warn('Effect load failed:', e);
-        const msg = '❌ Effect load failed. ' + errorText(e);
-        setStatus('Effect error', 'off');
-        effectNote.classList.add('show');
-        showError(msg);
-        alert(msg);
-        return;
-      }
+    if(!mpOk){
+      ldMsg.textContent='Loading fallback AI…'; ldBar.style.width='70%';
+      await initMoveNet();
+      S.running=true;
+      openVideoAndLoop();
     } else {
-      // No effect file yet — show placeholder notice
-      setStatus('No effect loaded', 'warn');
-      effectNote.classList.add('show');
-      hint.classList.remove('hidden');
-      hint.textContent = 'Add your .deepar effect file to see the shoe';
+      S.running=true;
     }
 
-    setProgress(100, 'Ready!');
+    ldBar.style.width='100%'; ldMsg.textContent='Ready!';
+    setTimeout(()=>{ loader.classList.add('hidden'); },500);
+    requestAnimationFrame(renderLoop);
 
-    // ── 4. Hide loader ────────────────────────────────────────
-    setTimeout(() => {
-      loader.classList.add('hidden');
-      setTimeout(() => { loader.style.display = 'none'; }, 600);
-    }, 300);
-
-  } catch (err) {
-    console.error('DeepAR init error:', err);
-
-    // Friendly error messages
-    let msg = err.message || String(err);
-    if (msg.includes('licence') || msg.includes('license') || msg.includes('key')) {
-      msg = '❌ Invalid licence key.\nReplace YOUR_DEEPAR_KEY in the CONFIG section with your real DeepAR key from deepar.ai/dashboard';
-    } else if (msg.includes('camera') || msg.includes('NotAllowed') || msg.includes('Permission')) {
-      msg = '❌ Camera permission denied.\nPlease allow camera access and reload.';
-    } else if (msg.includes('WebGL') || msg.includes('webgl')) {
-      msg = '❌ WebGL not supported on this device/browser.';
-    } else {
-      msg = '❌ ' + msg;
-    }
-
-    showError(msg);
-    alert(msg);
+  }catch(err){
+    console.error(err);
+    ldMsg.textContent=''; 
+    document.getElementById('ld-msg').style.color='#ff6b6b';
+    ldMsg.textContent='❌ '+err.message;
+    document.getElementById('ld-retry').style.display='block';
   }
 }
 
-// Kick off
-init();
+function openVideoAndLoop(){
+  // MoveNet runs in render loop
+}
+
+// ── Smoothing ────────────────────────────────
+function smooth(prev,next,alpha){
+  if(!prev) return {...next};
+  let da=next.angle-prev.angle;
+  if(da>Math.PI)da-=Math.PI*2; if(da<-Math.PI)da+=Math.PI*2;
+  return {
+    sx:prev.sx+alpha*(next.sx-prev.sx),
+    sy:prev.sy+alpha*(next.sy-prev.sy),
+    angle:prev.angle+alpha*da,
+    footPx:prev.footPx+alpha*(next.footPx-prev.footPx),
+    side:next.side,
+  };
+}
+
+// ── MediaPipe results ────────────────────────
+function onMPResults(results){
+  syncCanvasSize();
+  skCtx.clearRect(0,0,skCanvas.width,skCanvas.height);
+  const raw={left:null,right:null};
+
+  if(results.poseLandmarks){
+    const lm=results.poseLandmarks;
+    const sw=window.innerWidth,sh=window.innerHeight;
+    const getF=i=>(lm[i]&&lm[i].visibility>0.15)?lm[i]:null;
+    const getV=i=>(lm[i]&&lm[i].visibility>0.30)?lm[i]:null;
+
+    [
+      {ankle:getF(27),heel:getF(29),toe:getF(31),knee:getV(25),side:'left'},
+      {ankle:getF(28),heel:getF(30),toe:getF(32),knee:getV(26),side:'right'},
+    ].forEach(({ankle,heel,toe,knee,side})=>{
+      if(!ankle&&!(heel&&toe)) return;
+
+      // Anchor point
+      let ax,ay;
+      if(heel&&ankle){ ax=((heel.x+ankle.x)/2)*sw; ay=((heel.y+ankle.y)/2)*sh; }
+      else if(ankle)  { ax=ankle.x*sw; ay=ankle.y*sh; }
+      else            { ax=((heel.x+toe.x)/2)*sw; ay=((heel.y+toe.y)/2)*sh; }
+
+      // Angle
+      let angle=0;
+      if(heel&&toe){
+        const rawA=Math.atan2((toe.y-heel.y)*sh,(toe.x-heel.x)*sw);
+        // Clamp near-vertical angles (foot pointing at camera) → use horizontal default
+        const absA=Math.abs(rawA);
+        angle=(absA>Math.PI*0.35&&absA<Math.PI*0.65)?(side==='left'?0:Math.PI):rawA;
+      } else if(knee&&ankle){
+        angle=Math.atan2((ankle.y-knee.y)*sh,(ankle.x-knee.x)*sw);
+      } else {
+        angle=side==='left'?0:Math.PI;
+      }
+
+      // Foot size
+      let footPx;
+      if(heel&&toe)        footPx=Math.hypot((toe.x-heel.x)*sw,(toe.y-heel.y)*sh)*1.20;
+      else if(knee&&ankle) footPx=Math.hypot((ankle.x-knee.x)*sw,(ankle.y-knee.y)*sh)*0.72;
+      else                 footPx=90+ay/sh*160;
+
+      raw[side]={sx:ax,sy:ay,angle,footPx:Math.max(55,Math.min(footPx,380)),side};
+    });
+  }
+  applyRaw(raw);
+}
+
+// ── MoveNet frame ────────────────────────────
+async function runMoveNet(){
+  if(!S.pose||video.readyState<2) return;
+  try{
+    const poses=await S.pose.estimatePoses(video,{maxPoses:2,flipHorizontal:false,scoreThreshold:0.25});
+    const sw=window.innerWidth,sh=window.innerHeight;
+    const vw=video.videoWidth||sw,vh=video.videoHeight||sh;
+    const raw={left:null,right:null};
+    poses.forEach(pose=>{
+      const kp=pose.keypoints;
+      const get=(i,s=0.2)=>kp[i]?.score>s?kp[i]:null;
+      [{ankle:get(15),knee:get(13),side:'left'},{ankle:get(16),knee:get(14),side:'right'}]
+      .forEach(({ankle,knee,side})=>{
+        if(!ankle) return;
+        const ax=(ankle.x/vw)*sw,ay=(ankle.y/vh)*sh;
+        let angle=side==='left'?0:Math.PI, footPx=90+ay/sh*140;
+        if(knee){ const kx=(knee.x/vw)*sw,ky=(knee.y/vh)*sh; angle=Math.atan2(ay-ky,ax-kx); footPx=Math.hypot(ax-kx,ay-ky)*0.72; }
+        raw[side]={sx:ax,sy:ay,angle,footPx:Math.max(55,Math.min(footPx,380)),side};
+      });
+    });
+    applyRaw(raw);
+  }catch(e){console.warn(e);}
+}
+
+function applyRaw(raw){
+  const alpha=CFG.smooth;
+  if(raw.left)  S.smoothL=smooth(S.smoothL,raw.left, alpha);
+  if(raw.right) S.smoothR=smooth(S.smoothR,raw.right,alpha);
+  if(!raw.left  &&S.smoothL) S.smoothL=smooth(S.smoothL,S.smoothL,0.05);
+  if(!raw.right &&S.smoothR) S.smoothR=smooth(S.smoothR,S.smoothR,0.05);
+
+  const count=[raw.left,raw.right].filter(Boolean).length;
+  const detected=raw.left||raw.right;
+  footBadge.textContent=`👟 ${count} ${count===1?'foot':'feet'}`;
+  footBadge.className=detected?'on':'';
+  if(detected){ hint.classList.add('hidden'); S.noDetect=0; }
+  else{
+    S.noDetect++;
+    if(S.noDetect>45) hint.classList.remove('hidden');
+  }
+}
+
+// ── Render loop ──────────────────────────────
+let lastT=0;
+async function renderLoop(ts){
+  if(!S.running){ requestAnimationFrame(renderLoop); return; }
+  requestAnimationFrame(renderLoop);
+  syncCanvasSize();
+
+  if(S.poseType==='movenet'&&ts-lastT>60){ lastT=ts; await runMoveNet(); }
+
+  updateShoes();
+  renderer.render(scene,camera);
+}
+
+function syncCanvasSize(){
+  const vw=video.videoWidth||window.innerWidth,vh=video.videoHeight||window.innerHeight;
+  if(skCanvas.width!==vw){skCanvas.width=vw;skCanvas.height=vh;}
+}
+
+// ── Shoe placement ───────────────────────────
+function updateShoes(){
+  if(!S.shoeReady) return;
+  [{group:groupL,data:S.smoothL,isLeft:true},{group:groupR,data:S.smoothR,isLeft:false}]
+  .forEach(({group,data,isLeft})=>{
+    if(!data){group.visible=false;return;}
+    group.visible=true;
+    const angle=data.angle;
+    const dx=Math.cos(angle),dy=Math.sin(angle);
+    const sc=(data.footPx/shoeModelLength)*CFG.scale;
+    const halfShoe=shoeModelLength*sc*0.5;
+    group.position.set(
+      data.sx+dx*(CFG.fwd+halfShoe),
+      data.sy+dy*(CFG.fwd+halfShoe)+CFG.yOff,
+      0
+    );
+    group.scale.set(sc*(isLeft?-1:1),sc,sc);
+    group.rotation.z=-angle;
+  });
+}
+
+// ── Screenshot ───────────────────────────────
+function snap(){
+  const flash=document.getElementById('flash');
+  flash.classList.add('on');
+  setTimeout(()=>flash.classList.remove('on'),200);
+
+  // Merge video + 3D canvas into one image
+  const out=document.createElement('canvas');
+  out.width=window.innerWidth; out.height=window.innerHeight;
+  const ctx=out.getContext('2d');
+  ctx.drawImage(video,0,0,out.width,out.height);
+  ctx.drawImage(document.getElementById('three-canvas'),0,0,out.width,out.height);
+  const a=document.createElement('a');
+  a.href=out.toDataURL('image/png');
+  a.download='shoe-tryon-'+Date.now()+'.png';
+  a.click();
+}
+
+boot();
 </script>
-
-<!--
-═══════════════════════════════════════════════════════════════
-  SETUP GUIDE
-═══════════════════════════════════════════════════════════════
-
-  STEP 1 — Get your DeepAR licence key
-    → https://deepar.ai/dashboard
-    → Create a project, copy the Web SDK key
-    → Paste it into CONFIG.licenceKey above
-
-  STEP 2 — Create your shoe .deepar effect (FREE)
-    → Go to https://effects.deepar.ai
-    → New project → select "Body Tracking" template
-    → Import shoe.glb
-    → In the scene, attach the shoe mesh to:
-        Left Foot bone  (for left shoe)
-        Right Foot bone (for right shoe)
-    → Adjust scale/position to fit
-    → Export → save as e.g. shoe_effect.deepar
-    → Put it in the same folder as this HTML file
-    → Set CONFIG.effectPath = 'shoe_effect.deepar'
-
-  STEP 3 — Serve locally (required — file:// won't work)
-    → npx serve .
-    → or: python3 -m http.server 8080
-    → Open http://localhost:8080/tryon-deepar.html
-
-  STEP 4 — On mobile
-    → Make sure your phone and PC are on the same network
-    → Open http://YOUR_PC_IP:8080/tryon-deepar.html on your phone
-    → Allow camera when prompted
-
-  DeepAR docs: https://docs.deepar.ai/deepar-sdk/web
-═══════════════════════════════════════════════════════════════
--->
-
 </body>
 </html>
