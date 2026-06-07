@@ -160,10 +160,20 @@ function initMediaPipe(){
     const pose=new Pose({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
     pose.setOptions({ modelComplexity:1, smoothLandmarks:true, minDetectionConfidence:0.55, minTrackingConfidence:0.55 });
     pose.onResults(onMPResults);
-    const cam=new Camera(video,{onFrame:async()=>{
-      if(S.running) await pose.send({image:video});
-    }, width:640, height:480});
-    cam.start().then(()=>{S.pose=pose;S.poseType='mediapipe';res();}).catch(rej);
+    // Feed frames manually from already-open video — avoids opening camera twice
+    pose.initialize().then(()=>{
+      S.pose=pose; S.poseType='mediapipe';
+      // Start feeding frames via requestAnimationFrame
+      async function mpLoop(){
+        if(!S.running) return;
+        if(video.readyState>=2){
+          try{ await pose.send({image:video}); }catch(e){ console.warn('MP send err',e); }
+        }
+        requestAnimationFrame(mpLoop);
+      }
+      mpLoop();
+      res();
+    }).catch(rej);
   });
 }
 
@@ -182,18 +192,31 @@ async function initMoveNet(){
 
 // ── Camera open ──────────────────────────────
 async function openCamera(){
+  // Stop any existing tracks first to release camera lock
+  if(video.srcObject){
+    video.srcObject.getTracks().forEach(t=>t.stop());
+    video.srcObject=null;
+  }
+  // Small delay to let OS release the camera
+  await new Promise(r=>setTimeout(r,300));
+
   const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
   const constraints = isMobile ? [
-    {video:{facingMode:{exact:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},
+    {video:{facingMode:{exact:'environment'},width:{ideal:640},height:{ideal:480}},audio:false},
     {video:{facingMode:'environment'},audio:false},
+    {video:{facingMode:{exact:'user'}},audio:false},
     {video:true,audio:false},
   ] : [
     {video:{width:{ideal:1280},height:{ideal:720}},audio:false},
     {video:true,audio:false},
   ];
   for(const c of constraints){
-    try{ const s=await navigator.mediaDevices.getUserMedia(c); video.srcObject=s; await video.play(); return; }
-    catch(e){ console.warn('cam attempt failed',e.name); }
+    try{
+      const s=await navigator.mediaDevices.getUserMedia(c);
+      video.srcObject=s;
+      await video.play();
+      return;
+    }catch(e){ console.warn('cam attempt failed',e.name,e.message); }
   }
   throw new Error('Camera could not be opened. Please allow camera access and reload.');
 }
@@ -213,7 +236,6 @@ async function boot(){
     try{
       await Promise.race([
         (async()=>{
-          await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
           await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js');
           await initMediaPipe();
           mpOk=true;
