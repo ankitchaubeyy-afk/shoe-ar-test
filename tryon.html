@@ -229,7 +229,7 @@
 //  CONFIG — edit these to match your setup
 // ─────────────────────────────────────────────────────────────
 const CONFIG = {
-  licenceKey:  'a82708247ab81914fec0ea1f57b91f2c5fc7278abd877a904721b2d20bab576577237517883ef9fe',   // ← paste your DeepAR licence key here
+  licenceKey:  'YOUR_NEW_DEEPAR_KEY_HERE',   // ← paste your DeepAR licence key here
 
   // Path to your .deepar effect file for shoe try-on.
   // Instructions to create one (free):
@@ -313,13 +313,32 @@ async function init() {
     // ── Request camera FIRST to avoid "Could not start video source" ──
     setProgress(15, 'Requesting camera…');
     let stream = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: CONFIG.facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-    } catch (camErr) {
-      throw new Error('Camera access denied. Please allow camera and reload. (' + camErr.message + ')');
+
+    // Try exact facingMode first, then fallback to any camera, then bare true
+    const camConstraints = [
+      { video: { facingMode: { exact: CONFIG.facingMode } }, audio: false },
+      { video: { facingMode: { ideal: CONFIG.facingMode } }, audio: false },
+      { video: true, audio: false },
+    ];
+
+    for (const constraint of camConstraints) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraint);
+        console.log('Camera opened with:', JSON.stringify(constraint));
+        break;
+      } catch (e) {
+        console.warn('Camera attempt failed:', e.name, e.message);
+      }
+    }
+
+    if (!stream) {
+      throw new Error(
+        'Camera could not be opened.\n\n' +
+        'Please:\n' +
+        '1. Go to Chrome Settings → Site Settings → Camera\n' +
+        '2. Find ankitchaubeyy-afk.github.io and tap Reset\n' +
+        '3. Reload this page and tap Allow'
+      );
     }
 
     setProgress(30, 'Starting DeepAR…');
